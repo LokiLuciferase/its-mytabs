@@ -21,10 +21,6 @@ EXPOSE 47777
 
 RUN mkdir -p /app/data && chown -R deno:deno /app/data
 
-RUN apt update && \
-    apt --yes --no-install-recommends install gosu && \
-    rm -rf /var/lib/apt/lists/*
-
 USER deno
 
 COPY --chown=deno:deno ./extra /app/extra
@@ -39,10 +35,6 @@ COPY --chown=deno:deno ./dist /app/dist
 RUN deno install && \
     deno cache ./backend/main.ts && \
     timeout 10s deno -A main.ts || exit 0
-
-# Switch back to root, I found that it will cause permission issues if the user does not set permissions correctly
-# Use PUID / PGID to switch back to `deno` user instead
-USER root
 
 RUN chmod +x /app/extra/docker-entrypoint.sh
 
