@@ -15,7 +15,9 @@ export default defineComponent({
             isSaving: false,
             isEditing: false,
             artistSlug: "",
-            focusAfterEdit: false,
+            pageSize: 50,
+            displayLimit: 50,
+            observer: null,
         };
     },
     computed: {
@@ -25,6 +27,9 @@ export default defineComponent({
                 const tabArtist = this.slugify(tab.artist || "Unknown Artist");
                 return tabArtist === artistKey;
             });
+        },
+        visibleTabs() {
+            return this.filteredTabs.slice(0, this.displayLimit);
         },
     },
     async mounted() {
@@ -79,12 +84,35 @@ export default defineComponent({
                 this.newArtistName = this.artistName;
                 this.isEditing = false;
                 this.ready = true;
+                this.displayLimit = this.pageSize;
+                await this.$nextTick();
+                this.setupObserver();
             } catch (error) {
                 notify({
                     text: error.message,
                     type: "error",
                 });
             }
+        },
+        setupObserver() {
+            if (this.observer) {
+                this.observer.disconnect();
+            }
+            const target = this.$refs.scrollSentinel;
+            if (!target || typeof IntersectionObserver === "undefined") {
+                return;
+            }
+            this.observer = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    this.displayLimit = Math.min(
+                        this.displayLimit + this.pageSize,
+                        this.filteredTabs.length,
+                    );
+                }
+            }, {
+                rootMargin: "200px",
+            });
+            this.observer.observe(target);
         },
         async updateArtistName() {
             const updatedName = this.newArtistName.trim();
@@ -165,6 +193,11 @@ export default defineComponent({
             }
         },
     },
+    async beforeUnmount() {
+        if (this.observer) {
+            this.observer.disconnect();
+        }
+    },
 });
 </script>
 
@@ -231,7 +264,7 @@ export default defineComponent({
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="tab in filteredTabs" :key="tab.id">
+                <tr v-for="tab in visibleTabs" :key="tab.id">
                     <td>
                         <router-link :to="`/tab/${tab.id}`" class="tab-link">
                             {{ tab.title }}
@@ -255,6 +288,11 @@ export default defineComponent({
                 </tr>
             </tbody>
         </table>
+        <div
+            ref="scrollSentinel"
+            class="scroll-sentinel"
+            v-if="filteredTabs.length"
+        ></div>
     </div>
 </template>
 
@@ -285,5 +323,9 @@ export default defineComponent({
 
 .tab-link:hover {
     text-decoration: underline;
+}
+
+.scroll-sentinel {
+    height: 1px;
 }
 </style>

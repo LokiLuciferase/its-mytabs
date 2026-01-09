@@ -13,6 +13,9 @@ export default defineComponent({
             searchQuery: "",
             sortKey: "artist",
             sortDir: "asc",
+            pageSize: 50,
+            displayLimit: 50,
+            observer: null,
         };
     },
 
@@ -32,6 +35,7 @@ export default defineComponent({
 
             await this.$nextTick();
             this.$refs.searchInput?.focus();
+            this.setupObserver();
         } catch (error) {
             notify({
                 text: error.message,
@@ -64,6 +68,9 @@ export default defineComponent({
             });
             return list;
         },
+        visibleTabList() {
+            return this.sortedTabList.slice(0, this.displayLimit);
+        },
     },
 
     methods: {
@@ -83,6 +90,26 @@ export default defineComponent({
         },
         artistRoute(tab) {
             return `/artist/${this.slugify(this.artistLabel(tab))}`;
+        },
+        setupObserver() {
+            if (this.observer) {
+                this.observer.disconnect();
+            }
+            const target = this.$refs.scrollSentinel;
+            if (!target || typeof IntersectionObserver === "undefined") {
+                return;
+            }
+            this.observer = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    this.displayLimit = Math.min(
+                        this.displayLimit + this.pageSize,
+                        this.sortedTabList.length,
+                    );
+                }
+            }, {
+                rootMargin: "200px",
+            });
+            this.observer.observe(target);
         },
         setSort(key) {
             if (this.sortKey === key) {
@@ -119,6 +146,25 @@ export default defineComponent({
                 });
             }
         },
+    },
+    watch: {
+        searchQuery() {
+            this.displayLimit = this.pageSize;
+            this.$nextTick(() => this.setupObserver());
+        },
+        sortKey() {
+            this.displayLimit = this.pageSize;
+            this.$nextTick(() => this.setupObserver());
+        },
+        sortDir() {
+            this.displayLimit = this.pageSize;
+            this.$nextTick(() => this.setupObserver());
+        },
+    },
+    async beforeUnmount() {
+        if (this.observer) {
+            this.observer.disconnect();
+        }
     },
 });
 </script>
@@ -184,7 +230,7 @@ export default defineComponent({
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="tab in sortedTabList" :key="tab.id">
+                <tr v-for="tab in visibleTabList" :key="tab.id">
                     <td>
                         <router-link :to="artistRoute(tab)" class="tab-link">
                             {{ artistLabel(tab) }}
@@ -213,6 +259,11 @@ export default defineComponent({
                 </tr>
             </tbody>
         </table>
+        <div
+            ref="scrollSentinel"
+            class="scroll-sentinel"
+            v-if="ready && sortedTabList.length"
+        ></div>
 
         <div
             v-if="ready && filteredTabList.length === 0 && searchQuery"
@@ -250,5 +301,9 @@ export default defineComponent({
 
 .tab-link:hover {
     text-decoration: underline;
+}
+
+.scroll-sentinel {
+    height: 1px;
 }
 </style>
