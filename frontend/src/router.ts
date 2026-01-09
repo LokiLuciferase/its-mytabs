@@ -8,6 +8,7 @@ import Login from "./pages/Login.vue";
 import TabConfig from "./pages/TabConfig.vue";
 import Settings from "./pages/Settings.vue";
 import TabNew from "./pages/TabNew.vue";
+import Artist from "./pages/Artist.vue";
 
 const Tab = () => import("./pages/Tab.vue");
 
@@ -46,6 +47,11 @@ const routes: RouteRecordRaw[] = [
                         name: "tab",
                         path: "/tab/:id",
                         component: Tab,
+                    },
+                    {
+                        name: "artist",
+                        path: "/artist/:name",
+                        component: Artist,
                     },
                     {
                         name: "settings",
