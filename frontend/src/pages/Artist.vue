@@ -3,6 +3,7 @@ import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
 import { baseURL, checkFetch, generalError } from "../app.js";
 import { isLoggedIn } from "../auth-client.js";
+import { tabTypeList } from "../../../backend/common.js";
 
 export default defineComponent({
     data() {
@@ -18,14 +19,29 @@ export default defineComponent({
             pageSize: 50,
             displayLimit: 50,
             observer: null,
+            actionsTabId: null,
+            selectedType: "",
+            selectedFormat: "",
+            tabTypeList,
         };
     },
     computed: {
-        filteredTabs() {
+        baseTabs() {
             const artistKey = this.artistSlug;
             return this.tabList.filter((tab) => {
                 const tabArtist = this.slugify(tab.artist || "Unknown Artist");
                 return tabArtist === artistKey;
+            });
+        },
+        filteredTabs() {
+            return this.baseTabs.filter((tab) => {
+                if (this.selectedType && tab.type !== this.selectedType) {
+                    return false;
+                }
+                if (this.selectedFormat && this.formatFilterKey(tab) !== this.selectedFormat) {
+                    return false;
+                }
+                return true;
             });
         },
         visibleTabs() {
@@ -54,6 +70,38 @@ export default defineComponent({
                 .toLowerCase()
                 .replace(/[\s_-]+/g, "-")
                 .replace(/^-+|-+$/g, "");
+        },
+        formatLabel(tab) {
+            const ext = this.formatKey(tab);
+            const map = {
+                txt: "Plain Text",
+                gp: "GuitarPro",
+                gpx: "GuitarPro",
+                gp3: "GuitarPro",
+                gp4: "GuitarPro",
+                gp5: "GuitarPro",
+                musicxml: "MusicXML",
+                capx: "Capella",
+            };
+            return map[ext] || ext.toUpperCase() || "Unknown";
+        },
+        formatKey(tab) {
+            const name = tab?.filename || "";
+            return name.split(".").pop()?.toLowerCase() || "";
+        },
+        formatFilterKey(tab) {
+            const ext = this.formatKey(tab);
+            if (["gp", "gpx", "gp3", "gp4", "gp5"].includes(ext)) {
+                return "guitarpro";
+            }
+            return ext;
+        },
+        resetFilters() {
+            this.selectedType = "";
+            this.selectedFormat = "";
+        },
+        getTabById(id) {
+            return this.filteredTabs.find((tab) => tab.id === id) || null;
         },
         async ensureLogin() {
             this.isLoggedIn = await isLoggedIn();
@@ -193,7 +241,17 @@ export default defineComponent({
             }
         },
     },
-    async beforeUnmount() {
+    watch: {
+        selectedType() {
+            this.displayLimit = this.pageSize;
+            this.$nextTick(() => this.setupObserver());
+        },
+        selectedFormat() {
+            this.displayLimit = this.pageSize;
+            this.$nextTick(() => this.setupObserver());
+        },
+    },
+    beforeUnmount() {
         if (this.observer) {
             this.observer.disconnect();
         }
@@ -255,36 +313,51 @@ export default defineComponent({
             Tabs for this artist: {{ filteredTabs.length }}
         </div>
 
+        <div class="filters mb-3">
+            <select class="form-select" v-model="selectedType" aria-label="Filter by type">
+                <option value="">All types</option>
+                <option v-for="type in tabTypeList" :key="type" :value="type">
+                    {{ type }}
+                </option>
+            </select>
+            <select class="form-select" v-model="selectedFormat" aria-label="Filter by format">
+                <option value="">All formats</option>
+                <option value="txt">Plain Text</option>
+                <option value="guitarpro">GuitarPro</option>
+                <option value="musicxml">MusicXML</option>
+                <option value="capx">Capella</option>
+            </select>
+            <button class="btn btn-outline-secondary" type="button" @click="resetFilters">
+                Reset
+            </button>
+        </div>
+
         <table v-if="filteredTabs.length" class="table tab-table">
             <thead>
                 <tr>
                     <th scope="col">Title</th>
                     <th scope="col">Type</th>
-                    <th scope="col" class="text-end">Actions</th>
+                    <th scope="col">Format</th>
                 </tr>
             </thead>
             <tbody>
                 <tr v-for="tab in visibleTabs" :key="tab.id">
                     <td>
-                        <router-link :to="`/tab/${tab.id}`" class="tab-link">
-                            {{ tab.title }}
-                        </router-link>
+                        <div class="title-cell">
+                            <router-link :to="`/tab/${tab.id}`" class="tab-link">
+                                {{ tab.title }}
+                            </router-link>
+                            <button
+                                class="btn btn-outline-secondary btn-sm action-gear"
+                                @click="actionsTabId = tab.id"
+                                aria-label="Open actions"
+                            >
+                                ⚙
+                            </button>
+                        </div>
                     </td>
                     <td>{{ tab.type }}</td>
-                    <td class="text-end">
-                        <button
-                            class="btn btn-secondary me-2"
-                            @click="$router.push(`/tab/${tab.id}/edit/info`)"
-                        >
-                            Edit
-                        </button>
-                        <button
-                            class="btn btn-danger"
-                            @click="deleteTab(tab.id, tab.title)"
-                        >
-                            Delete
-                        </button>
-                    </td>
+                    <td>{{ formatLabel(tab) }}</td>
                 </tr>
             </tbody>
         </table>
@@ -293,6 +366,39 @@ export default defineComponent({
             class="scroll-sentinel"
             v-if="filteredTabs.length"
         ></div>
+
+        <div
+            v-if="ready && filteredTabs.length === 0"
+            class="empty-state text-center py-5 mb-4 fs-5"
+        >
+            <p class="text-muted">No tabs match the current filters.</p>
+            <button class="btn btn-sm btn-outline-secondary" @click="resetFilters">
+                Reset filters
+            </button>
+        </div>
+
+        <div v-if="actionsTabId !== null" class="modal-backdrop" @click="actionsTabId = null">
+            <div class="modal-card" @click.stop>
+                <h5 class="mb-3">Row actions</h5>
+                <div v-if="getTabById(actionsTabId)" class="modal-actions">
+                    <button
+                        class="btn btn-secondary"
+                        @click="$router.push(`/tab/${actionsTabId}/edit/info`)"
+                    >
+                        Edit
+                    </button>
+                    <button
+                        class="btn btn-danger"
+                        @click="deleteTab(actionsTabId, getTabById(actionsTabId)?.title); actionsTabId = null"
+                    >
+                        Delete
+                    </button>
+                </div>
+                <button class="btn btn-outline-secondary mt-3" @click="actionsTabId = null">
+                    Close
+                </button>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -316,6 +422,27 @@ export default defineComponent({
     width: 100%;
 }
 
+.tab-table tbody tr:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.title-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-gear {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.tab-table tbody tr:hover .action-gear {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .tab-link {
     color: inherit;
     text-decoration: none;
@@ -327,5 +454,34 @@ export default defineComponent({
 
 .scroll-sentinel {
     height: 1px;
+}
+
+.filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 280px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
 }
 </style>
