@@ -110,6 +110,9 @@ MYTABS_PORT=47777
 
 # (boolean) Whether to launch the browser when starting the app (Desktop only) (Default: true)
 MYTABS_LAUNCH_BROWSER=true
+
+# (string) Tab file storage backend: filesystem or sqlite (Default: filesystem)
+TAB_STORAGE=filesystem
 ```
 
 ## Motivation

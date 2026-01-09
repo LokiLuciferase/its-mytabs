@@ -1,19 +1,22 @@
-import { tabDir } from "./util.ts";
+import { isTabStorageDb, tabDir } from "./util.ts";
 import * as fs from "@std/fs";
 import * as path from "@std/path";
 import { AudioData, AudioDataSchema, TabInfo, TabInfoSchema, UpdateTabInfo, Youtube, YoutubeSaveRequest, YoutubeSchema } from "./zod.ts";
-import { kv } from "./db.ts";
+import { deleteTabFile, getTabFileRow, kv, storeTabFile } from "./db.ts";
 import sanitize from "sanitize-filename";
 
 export async function createTab(tabFileData: Uint8Array, ext: string, title: string, artist: string, originalFilename: string) {
     const id = await getNextTabID();
-    const dir = path.join(tabDir, id.toString());
-
-    // Don't use fs.ensureDir, to avoid rarely case that two tabs get the same ID
-    await Deno.mkdir(dir);
-
     const filename = "tab." + ext;
-    await Deno.writeFile(path.join(dir, filename), tabFileData);
+
+    if (isTabStorageDb()) {
+        storeTabFile(id, filename, tabFileData);
+    } else {
+        const dir = path.join(tabDir, id.toString());
+        // Don't use fs.ensureDir, to avoid rarely case that two tabs get the same ID
+        await Deno.mkdir(dir);
+        await Deno.writeFile(path.join(dir, filename), tabFileData);
+    }
 
     // Create info.json
     const info: TabInfo = {
@@ -33,15 +36,19 @@ export async function createTab(tabFileData: Uint8Array, ext: string, title: str
 
 // Replace Tab
 export async function replaceTab(tab: TabInfo, tabFileData: Uint8Array, ext: string, originalFilename: string) {
-    // Rename old file to filename.ext.timestamp
-    const oldFilePath = getTabFilePath(tab);
-    const renamedOldFilePath = oldFilePath + "." + Date.now().toString();
-    await Deno.rename(oldFilePath, renamedOldFilePath);
-
-    // Write new file
     const filename = "tab." + ext;
-    const newFilePath = path.join(tabDir, tab.id.toString(), filename);
-    await Deno.writeFile(newFilePath, tabFileData);
+    if (isTabStorageDb()) {
+        storeTabFile(tab.id, filename, tabFileData);
+    } else {
+        // Rename old file to filename.ext.timestamp
+        const oldFilePath = getTabFilePath(tab);
+        const renamedOldFilePath = oldFilePath + "." + Date.now().toString();
+        await Deno.rename(oldFilePath, renamedOldFilePath);
+
+        // Write new file
+        const newFilePath = path.join(tabDir, tab.id.toString(), filename);
+        await Deno.writeFile(newFilePath, tabFileData);
+    }
 
     // Update tab info
     tab.filename = filename;
@@ -110,7 +117,30 @@ export function getTabFilePath(tab: TabInfo) {
 }
 
 export function getTabFullFilePath(tab: TabInfo) {
+    if (isTabStorageDb()) {
+        return "";
+    }
     return path.join(Deno.cwd(), getTabFilePath(tab));
+}
+
+export async function getTabFileData(tab: TabInfo): Promise<Uint8Array> {
+    if (isTabStorageDb()) {
+        const row = getTabFileRow(tab.id);
+        if (!row) {
+            throw new Error("Tab file not found");
+        }
+        return row.data instanceof Uint8Array ? row.data : new Uint8Array(row.data);
+    }
+
+    return await Deno.readFile(getTabFilePath(tab));
+}
+
+export async function getTabFileText(tab: TabInfo): Promise<string> {
+    if (isTabStorageDb()) {
+        const data = await getTabFileData(tab);
+        return new TextDecoder().decode(data);
+    }
+    return await Deno.readTextFile(getTabFilePath(tab));
 }
 
 export async function deleteTab(id: number) {
@@ -120,11 +150,17 @@ export async function deleteTab(id: number) {
         throw new Error("Tab not found");
     }
 
-    // Rename the directory to ./data/tabs/deleted/
+    if (isTabStorageDb()) {
+        deleteTabFile(id);
+    }
+
+    // Rename the directory to ./data/tabs/deleted/ if it exists
     const oldPath = path.join(tabDir, id.toString());
-    const newPath = path.join(tabDir, "deleted", id.toString() + "-" + Date.now().toString());
-    await fs.ensureDir(path.join(tabDir, "deleted"));
-    await Deno.rename(oldPath, newPath);
+    if (await fs.exists(oldPath)) {
+        const newPath = path.join(tabDir, "deleted", id.toString() + "-" + Date.now().toString());
+        await fs.ensureDir(path.join(tabDir, "deleted"));
+        await Deno.rename(oldPath, newPath);
+    }
 
     // Delete from KV
     await kv.delete(["tab", id]);
@@ -152,7 +188,9 @@ export async function addAudio(tab: TabInfo, audioFileData: Uint8Array, original
         throw new Error("Audio file with the same name already exists");
     }
 
-    const filePath = path.join(tabDir, tab.id.toString(), filename);
+    const dir = path.join(tabDir, tab.id.toString());
+    await fs.ensureDir(dir);
+    const filePath = path.join(dir, filename);
     await Deno.writeFile(filePath, audioFileData);
 
     await kv.set(

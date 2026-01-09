@@ -16,7 +16,8 @@ import {
     deleteTab,
     getAudioList,
     getTab,
-    getTabFilePath,
+    getTabFileData,
+    getTabFileText,
     getTabFullFilePath,
     getYoutubeList,
     removeAudio,
@@ -541,13 +542,7 @@ export async function main() {
                 throw new Error("Tab file is not a text file");
             }
 
-            const filePath = getTabFilePath(tab);
-
-            if (!await fs.exists(filePath)) {
-                throw new Error("Tab file not found");
-            }
-
-            const content = await Deno.readTextFile(filePath);
+            const content = await getTabFileText(tab);
             return c.text(content, 200, {
                 "Content-Type": "text/plain; charset=utf-8",
             });
@@ -583,21 +578,11 @@ export async function main() {
             }
 
             const tab = await getTab(id);
-            const filePath = getTabFilePath(tab);
-
-            // Check if file exists
-            if (!await fs.exists(filePath)) {
-                throw new Error("Tab file not found");
-            }
-
-            // serve the file
-            const file = await Deno.open(filePath, {
-                read: true,
-            });
+            const data = await getTabFileData(tab);
 
             const encodedOriginalFilename = encodeURIComponent(tab.originalFilename);
 
-            return c.body(file.readable, 200, {
+            return c.body(data, 200, {
                 "Content-Type": "application/octet-stream",
                 "Content-Disposition": `attachment; filename="${encodedOriginalFilename}"`,
             });

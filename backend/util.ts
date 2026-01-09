@@ -17,6 +17,12 @@ export const appVersion: string = version;
 
 export const host = Deno.env.get("MYTABS_HOST");
 export const port = Deno.env.get("MYTABS_PORT") ? parseInt(Deno.env.get("MYTABS_PORT")!) : 47777;
+const tabStorageRaw = (Deno.env.get("TAB_STORAGE") || "filesystem").toLowerCase();
+export const tabStorage = tabStorageRaw === "sqlite" ? "sqlite" : "filesystem";
+
+export function isTabStorageDb() {
+    return tabStorage === "sqlite";
+}
 
 export async function getDataDir() {
     let dataDir = Deno.env.get("DATA_DIR") || "./data";

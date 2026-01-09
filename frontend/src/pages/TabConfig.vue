@@ -471,9 +471,12 @@ export default defineComponent({
         <!-- Tab File Page -->
         <div v-else-if='this.page === "tab-file"' class="mb-5">
             <h2 class="mt-4 mb-4">Method 1: Direct Edit</h2>
-            <p>
+            <p v-if="filePath">
                 If you can access the file system, you can edit/replace the tab directly, the path is:<br />
                 <strong>{{ filePath }}</strong>
+            </p>
+            <p v-else>
+                Direct edit is unavailable when tab files are stored in the database.
             </p>
 
             <h2 class="mt-4 mb-4">Method 2: Upload and replace the tab file</h2>
