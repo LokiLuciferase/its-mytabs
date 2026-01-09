@@ -47,6 +47,8 @@ export default defineComponent({
             enableMetronome: false,
             enableBackingTrack: true,
             isLooping: false,
+            isPlainText: false,
+            textTabContent: "",
             speed: 100,
             ready: false,
             selectedTrack: 0,
@@ -370,6 +372,19 @@ export default defineComponent({
                 this.audioList = data.audioList;
             }
 
+            this.isPlainText = this.isPlainTextTab(this.tab);
+            this.textTabContent = "";
+
+            if (this.isPlainText) {
+                this.tracks = [];
+                this.showTrackList = false;
+                this.showAudioList = false;
+                this.currentAudio = "none";
+                this.textTabContent = await this.fetchTextTab();
+                this.ready = true;
+                return;
+            }
+
             const tempToken = await this.getTempToken();
 
             // Requested trackID may be invalid, so we need to get the actual trackID used
@@ -432,6 +447,42 @@ export default defineComponent({
                 throw new Error("Failed to get get temp token");
             }
             return (await response.json()).token;
+        },
+
+        getTabExtension(filename) {
+            if (!filename) {
+                return "";
+            }
+            const idx = filename.lastIndexOf(".");
+            if (idx === -1) {
+                return "";
+            }
+            return filename.slice(idx + 1).toLowerCase();
+        },
+
+        isPlainTextTab(tab) {
+            return this.getTabExtension(tab?.filename || "") === "txt";
+        },
+
+        async fetchTextTab() {
+            const response = await fetch(baseURL + `/api/tab/${this.tabID}/text`, {
+                credentials: "include",
+            });
+
+            if (!response.ok) {
+                let msg = "Failed to load text tab";
+                try {
+                    const data = await response.json();
+                    if (data?.msg) {
+                        msg = data.msg;
+                    }
+                } catch {
+                    // ignore JSON parsing errors for non-JSON responses
+                }
+                throw new Error(msg);
+            }
+
+            return await response.text();
         },
 
         /**
@@ -1194,12 +1245,22 @@ export default defineComponent({
     <div class="main" :class='{ "light": this.setting.scoreColor === "light" }'>
         <h1>{{ tab.title }}</h1>
         <h2>{{ tab.artist }}</h2>
-        <div ref="bassTabContainer" v-pre></div>
+        <template v-if="!isPlainText">
+            <div ref="bassTabContainer" v-pre></div>
+        </template>
+        <template v-else>
+            <div class="text-tab-actions" v-if="isLoggedIn">
+                <button class="btn btn-secondary" @click="edit()">Edit</button>
+            </div>
+            <div class="text-tab">
+                <pre class="text-tab-content">{{ textTabContent }}</pre>
+            </div>
+        </template>
 
         <!-- Just add a margin, don't let youtube player overlay the tab -->
-        <div :class='{ "yt-margin": currentAudio.startsWith(`youtube-`) }'></div>
+        <div v-if="!isPlainText" :class='{ "yt-margin": currentAudio.startsWith(`youtube-`) }'></div>
 
-        <div class="toolbar">
+        <div class="toolbar" v-if="!isPlainText">
             <div class="scroll">
                 <div class="track-selector selector">
                     <div class="button" @click='showList("track")'>
@@ -1351,6 +1412,31 @@ $youtube-height: 200px;
 .yt-margin {
     width: 1px;
     height: $youtube-height !important;
+}
+
+.text-tab-actions {
+    margin: 10px 0 20px 0;
+}
+
+.text-tab {
+    background: #1d1d1f;
+    border: 1px solid #2c2c30;
+    border-radius: 8px;
+    padding: 16px;
+    overflow: auto;
+}
+
+.main.light .text-tab {
+    background: #ffffff;
+    border-color: #d6d6d6;
+}
+
+.text-tab-content {
+    font-family: "Courier New", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre;
 }
 
 .toolbar {

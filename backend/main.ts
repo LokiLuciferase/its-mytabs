@@ -522,6 +522,41 @@ export async function main() {
         }
     });
 
+    // Serve plain text tab
+    app.get("/api/tab/:id/text", async (c) => {
+        try {
+            const id = parseInt(c.req.param("id") || "");
+            if (isNaN(id)) {
+                throw new Error("Invalid tab ID");
+            }
+
+            const tab = await getTab(id);
+
+            if (!tab.public) {
+                await checkLogin(c);
+            }
+
+            const ext = tab.filename.split(".").pop()?.toLowerCase();
+            if (ext !== "txt") {
+                throw new Error("Tab file is not a text file");
+            }
+
+            const filePath = getTabFilePath(tab);
+
+            if (!await fs.exists(filePath)) {
+                throw new Error("Tab file not found");
+            }
+
+            const content = await Deno.readTextFile(filePath);
+            return c.text(content, 200, {
+                "Content-Type": "text/plain; charset=utf-8",
+            });
+        } catch (e) {
+            console.error(e);
+            return generalError(c, e);
+        }
+    });
+
     // Serve tab file
     app.get("/api/tab/:id/file", async (c) => {
         try {

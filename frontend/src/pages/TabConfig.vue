@@ -178,14 +178,16 @@ export default defineComponent({
                 }
 
                 const file = this.tabFiles[0].file;
+                const ext = file.name.split(".").pop()?.toLowerCase();
 
-                // Try to parse the file with AlphaTab to ensure it's valid
-                const data = await file.arrayBuffer();
-
-                const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(
-                    new Uint8Array(data),
-                    new alphaTab.Settings(),
-                );
+                if (ext !== "txt") {
+                    // Try to parse the file with AlphaTab to ensure it's valid
+                    const data = await file.arrayBuffer();
+                    alphaTab.importer.ScoreLoader.loadScoreFromBytes(
+                        new Uint8Array(data),
+                        new alphaTab.Settings(),
+                    );
+                }
 
                 const formData = new FormData();
                 formData.append("file", file);
