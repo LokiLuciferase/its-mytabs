@@ -23,6 +23,7 @@ export default defineComponent({
             selectedType: "",
             selectedFormat: "",
             tabTypeList,
+            showScrollTop: false,
         };
     },
     computed: {
@@ -51,6 +52,8 @@ export default defineComponent({
     async mounted() {
         await this.ensureLogin();
         await this.load();
+        this.onScroll();
+        window.addEventListener("scroll", this.onScroll, { passive: true });
     },
     watch: {
         "$route.params.name": {
@@ -135,6 +138,7 @@ export default defineComponent({
                 this.displayLimit = this.pageSize;
                 await this.$nextTick();
                 this.setupObserver();
+                this.onScroll();
             } catch (error) {
                 notify({
                     text: error.message,
@@ -161,6 +165,12 @@ export default defineComponent({
                 rootMargin: "200px",
             });
             this.observer.observe(target);
+        },
+        onScroll() {
+            this.showScrollTop = window.scrollY > 200;
+        },
+        scrollToTop() {
+            window.scrollTo({ top: 0, behavior: "smooth" });
         },
         async updateArtistName() {
             const updatedName = this.newArtistName.trim();
@@ -255,6 +265,7 @@ export default defineComponent({
         if (this.observer) {
             this.observer.disconnect();
         }
+        window.removeEventListener("scroll", this.onScroll);
     },
 });
 </script>
@@ -399,6 +410,16 @@ export default defineComponent({
                 </button>
             </div>
         </div>
+
+        <button
+            v-if="showScrollTop"
+            class="scroll-top-btn btn btn-primary"
+            type="button"
+            @click="scrollToTop"
+            aria-label="Scroll to top"
+        >
+            ↑
+        </button>
     </div>
 </template>
 
@@ -483,5 +504,19 @@ export default defineComponent({
 .modal-actions {
     display: flex;
     gap: 10px;
+}
+
+.scroll-top-btn {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    border-radius: 999px;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+    z-index: 900;
 }
 </style>
