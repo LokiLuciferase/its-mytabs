@@ -26,10 +26,7 @@ USER deno
 COPY --chown=deno:deno ./extra /app/extra
 COPY --chown=deno:deno ./backend /app/backend
 COPY --chown=deno:deno ./deno.jsonc /app/deno.jsonc
-
-# Extremely slow on multi-arch builds, copy from host instead
-#COPY --chown=deno:deno --from=builder /app/dist /app/dist
-COPY --chown=deno:deno ./dist /app/dist
+COPY --chown=deno:deno --from=builder /app/dist /app/dist
 
 # Install and cache dependencies
 RUN deno install && \
