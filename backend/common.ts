@@ -25,6 +25,13 @@ export const supportedAudioFormatCommaString = supportedAudioFormatList.map((ext
     return "." + ext;
 }).join(", ");
 
+export const tabTypeList = [
+    "Guitar Tabs",
+    "Bass Tabs",
+    "Drum Tabs",
+    "Guitar Chords",
+];
+
 export const midiProgramCodeList = {
     //0: "Acoustic Grand Piano",
     // Not sure why, but in TuxGuitar and Songsterr, it reports 0 as Drums

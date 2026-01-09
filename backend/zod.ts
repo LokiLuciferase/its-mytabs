@@ -10,11 +10,13 @@ export type SignUpData = z.infer<typeof SignUpSchema>;
 const title = z.string().min(1);
 const artist = z.string().min(0);
 const isPublic = z.boolean();
+const tabType = z.enum(["Guitar Tabs", "Bass Tabs", "Drum Tabs", "Guitar Chords"]);
 
 export const TabInfoSchema = z.object({
     id: z.number().default(-1),
     title: title.default("Unknown"),
     artist: artist.default("Unknown"),
+    type: tabType.default("Guitar Tabs"),
     filename: z.string().default("tab.gp"),
     originalFilename: z.string().default("Unknown"),
     createdAt: z.iso.datetime().default(() => new Date().toISOString()),
@@ -25,6 +27,7 @@ export type TabInfo = z.infer<typeof TabInfoSchema>;
 export const UpdateTabInfoSchema = z.object({
     title,
     artist,
+    type: tabType.optional(),
     public: isPublic,
 });
 export type UpdateTabInfo = z.infer<typeof UpdateTabInfoSchema>;

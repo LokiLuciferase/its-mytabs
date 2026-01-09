@@ -8,7 +8,7 @@ import { cors } from "@hono/hono/cors";
 import { serveStatic } from "@hono/hono/deno";
 import { appVersion, devOriginList, getFrontendDir, host, isDev, port, start, tabDir } from "./util.ts";
 import * as path from "@std/path";
-import { supportedAudioFormatList, supportedFormatList } from "./common.ts";
+import { supportedAudioFormatList, supportedFormatList, tabTypeList } from "./common.ts";
 import {
     addAudio,
     addYoutube,
@@ -154,17 +154,22 @@ export async function main() {
 
             let title = form.get("title") || fileName;
             let artist = form.get("artist") || "";
+            let type = form.get("type") || "Guitar Tabs";
 
             // Check title and artist type is string
-            if (typeof title !== "string" || typeof artist !== "string") {
-                throw new Error("Invalid title or artist");
+            if (typeof title !== "string" || typeof artist !== "string" || typeof type !== "string") {
+                throw new Error("Invalid title, artist, or type");
             }
 
             title = title.trim();
             artist = artist.trim();
+            type = type.trim();
+            if (!tabTypeList.includes(type)) {
+                throw new Error("Invalid tab type");
+            }
 
             const arrayBuffer = await file.arrayBuffer();
-            let id = await createTab(new Uint8Array(arrayBuffer), ext, title, artist, fileName);
+            let id = await createTab(new Uint8Array(arrayBuffer), ext, title, artist, type as TabInfo["type"], fileName);
 
             return c.json({
                 ok: true,

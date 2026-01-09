@@ -4,7 +4,7 @@ import Vue3Dropzone from "@jaxtheprime/vue3-dropzone";
 import "@jaxtheprime/vue3-dropzone/dist/style.css";
 import { notify } from "@kyvg/vue3-notification";
 import { baseURL } from "../app.js";
-import { supportedFormatCommaString } from "../../../backend/common.js";
+import { supportedFormatCommaString, tabTypeList } from "../../../backend/common.js";
 
 const alphaTab = await import("@coderline/alphatab");
 
@@ -20,6 +20,7 @@ export default defineComponent({
             titleCaseNames: true,
             mappings: [],
             folderModeEnabled: false,
+            tabTypeList,
         };
     },
     methods: {
@@ -28,47 +29,85 @@ export default defineComponent({
                 event.preventDefault();
             }
         },
+        resolveTypeLabel(rawType) {
+            if (!rawType) {
+                return "";
+            }
+            const normalized = rawType.trim().toLowerCase();
+            if (this.tabTypeList.includes(rawType)) {
+                return rawType;
+            }
+            if (normalized === "guitar tabs" || normalized === "guitartabs" || normalized === "guitar" || normalized === "tabs") {
+                return "Guitar Tabs";
+            }
+            if (normalized === "bass tabs" || normalized === "basstabs" || normalized === "bass") {
+                return "Bass Tabs";
+            }
+            if (normalized === "drum tabs" || normalized === "drumtabs" || normalized === "drum" || normalized === "drums") {
+                return "Drum Tabs";
+            }
+            if (normalized === "guitar chords" || normalized === "guitarchords" || normalized === "chords") {
+                return "Guitar Chords";
+            }
+            return "";
+        },
+        parseMappingType(rawReplacement, allowType) {
+            let type = "";
+            const tokenRegex = /{{\s*Type\s*:\s*([^}]+)\s*}}/gi;
+            let cleaned = rawReplacement;
+            let match;
+            while ((match = tokenRegex.exec(rawReplacement)) !== null) {
+                if (allowType) {
+                    type = this.resolveTypeLabel(match[1]) || type;
+                }
+            }
+            cleaned = cleaned.replace(tokenRegex, "");
+            return { cleaned, type };
+        },
         addMapping() {
             this.mappings.push({ from: "", to: "", useRegex: true });
         },
         removeMapping(index) {
             this.mappings.splice(index, 1);
         },
-        applyMappings(value) {
+        applyMappings(value, { allowType = false } = {}) {
             if (!value || this.mappings.length === 0) {
-                return value;
+                return { value, type: "" };
             }
 
             let mapped = value;
+            let mappedType = "";
             for (const mapping of this.mappings) {
                 if (!mapping.from) {
                     continue;
                 }
+                const { cleaned, type } = this.parseMappingType(mapping.to || "", allowType);
+                if (type) {
+                    mappedType = type;
+                }
                 if (mapping.useRegex) {
                     try {
                         const regex = new RegExp(mapping.from, "g");
-                        const replacement = (mapping.to || "").replace(
-                            /\\(\d+)/g,
-                            "$$$1",
-                        );
+                        const replacement = cleaned.replace(/\\(\d+)/g, "$$$1");
                         mapped = mapped.replace(regex, replacement);
                     } catch (err) {
                         console.warn("Invalid mapping regex", mapping.from, err);
                     }
                 } else {
-                    mapped = mapped.split(mapping.from).join(mapping.to || "");
+                    mapped = mapped.split(mapping.from).join(cleaned);
                 }
             }
 
-            return mapped;
+            return { value: mapped, type: mappedType };
         },
-        normalizeName(value) {
+        normalizeName(value, { allowType = false } = {}) {
             if (!value) {
-                return value;
+                return { value, type: "" };
             }
 
             let normalized = value;
-            normalized = this.applyMappings(normalized);
+            const mappingResult = this.applyMappings(normalized, { allowType });
+            normalized = mappingResult.value;
             if (this.replaceUnderscores) {
                 normalized = normalized.replace(/_/g, " ");
             }
@@ -80,7 +119,7 @@ export default defineComponent({
                     .replace(/\b([a-z])/g, (match) => match.toUpperCase());
             }
 
-            return normalized;
+            return { value: normalized, type: mappingResult.type };
         },
         getFilePath(fileItem) {
             const file = fileItem?.file || fileItem;
@@ -98,18 +137,20 @@ export default defineComponent({
                 return null;
             }
 
-            const tokenRegex = /{{\s*(Artist|Title)\s*}}/g;
+            const tokenRegex = /{{\s*(Artist|Title|Type)\s*}}/g;
             let regexString = "";
             let lastIndex = 0;
             const tokens = [];
             let match;
 
             while ((match = tokenRegex.exec(pattern)) !== null) {
+                const tokenName = match[1].toLowerCase();
+
                 regexString += pattern
                     .slice(lastIndex, match.index)
                     .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
                 regexString += "([^/]+)";
-                tokens.push(match[1].toLowerCase());
+                tokens.push(tokenName);
                 lastIndex = match.index + match[0].length;
             }
 
@@ -256,6 +297,10 @@ export default defineComponent({
                     if (parsed?.artist) {
                         artist = parsed.artist;
                     }
+                    let parsedType = "";
+                    if (parsed?.type) {
+                        parsedType = this.resolveTypeLabel(parsed.type) || "";
+                    }
 
                     if (ext !== "txt" && !parsed) {
                         // Try to parse the file with AlphaTab to ensure it's valid
@@ -268,14 +313,21 @@ export default defineComponent({
                         artist = score.artist;
                     }
 
-                    title = this.normalizeName(title);
-                    artist = this.normalizeName(artist);
+                    const titleResult = this.normalizeName(title, { allowType: true });
+                    const artistResult = this.normalizeName(artist);
+                    title = titleResult.value;
+                    artist = artistResult.value;
+                    const mappedType = titleResult.type || "";
+                    const finalType = parsedType || mappedType;
 
                     // Upload to /api/new-tab
                     const formData = new FormData();
                     formData.append("file", file);
                     formData.append("title", title);
                     formData.append("artist", artist);
+                    if (finalType) {
+                        formData.append("type", finalType);
+                    }
 
                     const res = await fetch(baseURL + "/api/new-tab", {
                         method: "POST",
@@ -341,7 +393,8 @@ export default defineComponent({
                     :disabled="!folderModeEnabled"
                 />
                 <div class="form-text" v-pre>
-                    Use {{Artist}} and {{Title}} to parse from folder paths before upload.
+                    Use {{Artist}}, {{Title}}, or {{Type}} to parse from folder paths before upload. If both
+                    path and mappings set a type, the path value wins.
                 </div>
                 <div class="form-check mt-3">
                     <input
@@ -379,9 +432,10 @@ export default defineComponent({
                             Add mapping
                         </button>
                     </div>
-                    <div v-if="mappings.length === 0" class="form-text">
+                    <div v-if="mappings.length === 0" class="form-text" v-pre>
                         Add replacements like <code>_chd</code> -> <code>(Chords)</code> or
-                        regex <code>_v(\\d+)</code> -> <code>Version $1</code>.
+                        regex <code>_v(\\d+)</code> -> <code>Version $1</code>. Set type with
+                        <code>{{Type:Chords}}</code>.
                     </div>
                     <div v-for="(mapping, index) in mappings" :key="index" class="mapping-row">
                         <input

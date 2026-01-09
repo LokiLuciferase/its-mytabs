@@ -3,7 +3,7 @@ import { defineComponent } from "vue";
 import { baseURL, checkFetch, convertAlphaTexSyncPoint, generalError } from "../app.js";
 import { notify } from "@kyvg/vue3-notification";
 import Vue3Dropzone from "@jaxtheprime/vue3-dropzone";
-import { supportedAudioFormatCommaString, supportedFormatCommaString } from "../../../backend/common.js";
+import { supportedAudioFormatCommaString, supportedFormatCommaString, tabTypeList } from "../../../backend/common.js";
 import SyncOptions from "../components/SyncOptions.vue";
 
 const alphaTab = await import("@coderline/alphatab");
@@ -24,6 +24,7 @@ export default defineComponent({
             filePath: "",
             tabFiles: [],
             audioFiles: [],
+            tabTypeList,
         };
     },
     async mounted() {
@@ -63,6 +64,7 @@ export default defineComponent({
                     body: JSON.stringify({
                         title: this.tab.title,
                         artist: this.tab.artist,
+                        type: this.tab.type,
                         public: this.tab.public,
                     }),
                 });
@@ -347,6 +349,16 @@ export default defineComponent({
                 <div class="mb-3">
                     <label for="tabArtist" class="form-label">Artist</label>
                     <input type="text" class="form-control" id="tabArtist" v-model="tab.artist">
+                </div>
+
+                <!-- Type -->
+                <div class="mb-3">
+                    <label for="tabType" class="form-label">Type</label>
+                    <select class="form-control" id="tabType" v-model="tab.type">
+                        <option v-for="type in tabTypeList" :key="type" :value="type">
+                            {{ type }}
+                        </option>
+                    </select>
                 </div>
 
                 <!-- Public (Dropdown) -->

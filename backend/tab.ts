@@ -5,12 +5,19 @@ import { AudioData, AudioDataSchema, TabInfo, TabInfoSchema, UpdateTabInfo, Yout
 import { deleteTabFile, getTabFileRow, kv, storeTabFile } from "./db.ts";
 import sanitize from "sanitize-filename";
 
-export async function createTab(tabFileData: Uint8Array, ext: string, title: string, artist: string, originalFilename: string) {
+export async function createTab(
+    tabFileData: Uint8Array,
+    ext: string,
+    title: string,
+    artist: string,
+    type: TabInfo["type"],
+    originalFilename: string,
+) {
     const id = await getNextTabID();
     const filename = "tab." + ext;
 
     if (isTabStorageDb()) {
-        storeTabFile(id, filename, tabFileData);
+        await storeTabFile(id, filename, tabFileData);
     } else {
         const dir = path.join(tabDir, id.toString());
         // Don't use fs.ensureDir, to avoid rarely case that two tabs get the same ID
@@ -23,6 +30,7 @@ export async function createTab(tabFileData: Uint8Array, ext: string, title: str
         id,
         title,
         artist,
+        type,
         filename,
         originalFilename,
         createdAt: new Date().toISOString(),
@@ -38,7 +46,7 @@ export async function createTab(tabFileData: Uint8Array, ext: string, title: str
 export async function replaceTab(tab: TabInfo, tabFileData: Uint8Array, ext: string, originalFilename: string) {
     const filename = "tab." + ext;
     if (isTabStorageDb()) {
-        storeTabFile(tab.id, filename, tabFileData);
+        await storeTabFile(tab.id, filename, tabFileData);
     } else {
         // Rename old file to filename.ext.timestamp
         const oldFilePath = getTabFilePath(tab);
@@ -108,6 +116,9 @@ export async function getTab(id: number) {
 export async function updateTab(tab: TabInfo, data: UpdateTabInfo) {
     tab.title = data.title;
     tab.artist = data.artist;
+    if (data.type) {
+        tab.type = data.type;
+    }
     tab.public = data.public;
     await kv.set(["tab", tab.id], tab);
 }
@@ -151,7 +162,7 @@ export async function deleteTab(id: number) {
     }
 
     if (isTabStorageDb()) {
-        deleteTabFile(id);
+        await deleteTabFile(id);
     }
 
     // Rename the directory to ./data/tabs/deleted/ if it exists

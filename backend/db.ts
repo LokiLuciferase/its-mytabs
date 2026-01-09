@@ -59,7 +59,7 @@ export async function addDemoTab() {
             await Deno.mkdir(dir);
             await Deno.writeFile(path.join(dir, filename), demoData);
         } else {
-            storeTabFile(id, filename, demoData);
+            await storeTabFile(id, filename, demoData);
         }
 
         // Add Tab
@@ -67,6 +67,7 @@ export async function addDemoTab() {
             id,
             title: "Hare no Hi ni (Bass Only)",
             artist: "Reira Ushio",
+            type: "Bass Tabs",
             filename,
             originalFilename: "汐れいら-ハレの日に (Bass Only)-09-18-2025.gp",
             createdAt: "2025-09-26T07:29:56.450Z",
@@ -86,9 +87,9 @@ export async function addDemoTab() {
     }
 }
 
-export function storeTabFile(tabID: number, filename: string, data: Uint8Array) {
+export async function storeTabFile(tabID: number, filename: string, data: Uint8Array) {
     const stmt = db.prepare("INSERT OR REPLACE INTO tab_file (tab_id, filename, data) VALUES (?, ?, ?)");
-    return runWithDbRetry(() => stmt.run(tabID, filename, data));
+    await runWithDbRetry(() => stmt.run(tabID, filename, data));
 }
 
 export function getTabFileRow(tabID: number) {
@@ -96,9 +97,9 @@ export function getTabFileRow(tabID: number) {
     return stmt.get(tabID) as { filename: string; data: Uint8Array } | undefined;
 }
 
-export function deleteTabFile(tabID: number) {
+export async function deleteTabFile(tabID: number) {
     const stmt = db.prepare("DELETE FROM tab_file WHERE tab_id = ?");
-    return runWithDbRetry(() => stmt.run(tabID));
+    await runWithDbRetry(() => stmt.run(tabID));
 }
 
 async function runWithDbRetry(action: () => void, attempts = 5) {
