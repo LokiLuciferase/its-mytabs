@@ -26,6 +26,12 @@ https://its-mytabs.kuma.pet/tab/1?audio=youtube-VuKSlOT__9s&track=2
 - Dark/Light tab colors
 - Able to show the score view instead of tab view
 - Able to share tabs with others with a link
+- Bulk upload: drop a nested folder of .txt files with path-based parsing for Artist/Title (and optional Type)
+- Regex mappings when importing to clean up names or set Type metadata
+- Tab Types metadata (Guitar Tabs, Bass Tabs, Drum Tabs, Guitar Chords)
+- Tabs list as sortable table with filters (Type and Format) and infinite scroll
+- Artist pages with inline rename and filtered tab list
+- Optional SQLite storage backend for tab file contents
 
 ## Installation
 
