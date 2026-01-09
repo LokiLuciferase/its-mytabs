@@ -81,20 +81,36 @@ export default defineComponent({
                 if (!mapping.from) {
                     continue;
                 }
-                const { cleaned, type } = this.parseMappingType(mapping.to || "", allowType);
-                if (type) {
-                    mappedType = type;
-                }
                 if (mapping.useRegex) {
                     try {
+                        const matchRegex = new RegExp(mapping.from);
+                        const isMatch = matchRegex.test(mapped);
+                        const { cleaned, type } = this.parseMappingType(mapping.to || "", allowType);
                         const regex = new RegExp(mapping.from, "g");
                         const replacement = cleaned.replace(/\\(\d+)/g, "$$$1");
                         mapped = mapped.replace(regex, replacement);
+                        if (isMatch && type) {
+                            if (mappedType && mappedType !== type) {
+                                throw new Error(`Multiple tab types detected (${mappedType}, ${type})`);
+                            }
+                            mappedType = type;
+                        }
                     } catch (err) {
+                        if (err instanceof Error && err.message.includes("Multiple tab types detected")) {
+                            throw err;
+                        }
                         console.warn("Invalid mapping regex", mapping.from, err);
                     }
                 } else {
+                    const isMatch = mapped.includes(mapping.from);
+                    const { cleaned, type } = this.parseMappingType(mapping.to || "", allowType);
                     mapped = mapped.split(mapping.from).join(cleaned);
+                    if (isMatch && type) {
+                        if (mappedType && mappedType !== type) {
+                            throw new Error(`Multiple tab types detected (${mappedType}, ${type})`);
+                        }
+                        mappedType = type;
+                    }
                 }
             }
 
