@@ -507,7 +507,6 @@ export default defineComponent({
                 v-model="files"
                 :maxFileSize="500"
                 :multiple="true"
-                :maxFiles="500"
                 @error="dropzoneError"
             >
                 <template #title>Drop your tabs here</template>
