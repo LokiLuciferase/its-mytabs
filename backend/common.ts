@@ -12,7 +12,8 @@ export const supportedFormatList = [
 /**
  * Supported format string for display, like ".gp, .gpx, .gp3, ..." (with dot)
  */
-export const supportedFormatCommaString = supportedFormatList.map((ext) => {
+const supportedFormatDisplayList = supportedFormatList.concat(["txt.gz"]);
+export const supportedFormatCommaString = supportedFormatDisplayList.map((ext) => {
     return "." + ext;
 }).join(", ");
 

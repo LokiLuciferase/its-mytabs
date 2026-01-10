@@ -180,9 +180,11 @@ export default defineComponent({
                 }
 
                 const file = this.tabFiles[0].file;
-                const ext = file.name.split(".").pop()?.toLowerCase();
+                const fileName = file.name.toLowerCase();
+                const ext = fileName.split(".").pop();
+                const isGzipText = fileName.endsWith(".txt.gz");
 
-                if (ext !== "txt") {
+                if (ext !== "txt" && !isGzipText) {
                     // Try to parse the file with AlphaTab to ensure it's valid
                     const data = await file.arrayBuffer();
                     alphaTab.importer.ScoreLoader.loadScoreFromBytes(

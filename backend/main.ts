@@ -32,6 +32,41 @@ import sanitize from "sanitize-filename";
 import "@std/dotenv/load";
 import { socketIO } from "./socket.ts";
 
+function isGzipTextFileName(fileName: string) {
+    return fileName.toLowerCase().endsWith(".txt.gz");
+}
+
+async function readTabUpload(file: File) {
+    const fileName = file.name;
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    if (!ext) {
+        throw new Error("File has no extension");
+    }
+
+    const isGzipText = isGzipTextFileName(fileName);
+    if (!supportedFormatList.includes(ext) && !isGzipText) {
+        throw new Error("Unsupported file format: " + ext);
+    }
+
+    if (isGzipText) {
+        const decompressed = await new Response(
+            file.stream().pipeThrough(new DecompressionStream("gzip")),
+        ).arrayBuffer();
+        return {
+            data: new Uint8Array(decompressed),
+            ext: "txt",
+            originalFilename: fileName.slice(0, -3),
+        };
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    return {
+        data: new Uint8Array(arrayBuffer),
+        ext,
+        originalFilename: fileName,
+    };
+}
+
 export async function main() {
     console.log(`It's MyTabs v${appVersion}`);
 
@@ -141,18 +176,9 @@ export async function main() {
                 throw new Error("No file uploaded");
             }
 
-            // Check file ext if in supportedFormatList
-            const fileName = file.name;
-            const ext = fileName.split(".").pop()?.toLowerCase();
-            if (!ext) {
-                throw new Error("File has no extension");
-            }
+            const { data, ext, originalFilename } = await readTabUpload(file);
 
-            if (!supportedFormatList.includes(ext)) {
-                throw new Error("Unsupported file format: " + ext);
-            }
-
-            let title = form.get("title") || fileName;
+            let title = form.get("title") || originalFilename;
             let artist = form.get("artist") || "";
             let type = form.get("type") || "Guitar Tabs";
 
@@ -168,8 +194,7 @@ export async function main() {
                 throw new Error("Invalid tab type");
             }
 
-            const arrayBuffer = await file.arrayBuffer();
-            let id = await createTab(new Uint8Array(arrayBuffer), ext, title, artist, type as TabInfo["type"], fileName);
+            let id = await createTab(data, ext, title, artist, type as TabInfo["type"], originalFilename);
 
             return c.json({
                 ok: true,
@@ -279,19 +304,8 @@ export async function main() {
                 throw new Error("No file uploaded");
             }
 
-            // Check file ext if in supportedFormatList
-            const fileName = file.name;
-            const ext = fileName.split(".").pop()?.toLowerCase();
-            if (!ext) {
-                throw new Error("File has no extension");
-            }
-
-            if (!supportedFormatList.includes(ext)) {
-                throw new Error("Unsupported file format: " + ext);
-            }
-
-            const arrayBuffer = await file.arrayBuffer();
-            await replaceTab(tab, new Uint8Array(arrayBuffer), ext, fileName);
+            const { data, ext, originalFilename } = await readTabUpload(file);
+            await replaceTab(tab, data, ext, originalFilename);
 
             return c.json({
                 ok: true,

@@ -137,6 +137,17 @@ export default defineComponent({
 
             return { value: normalized, type: mappingResult.type };
         },
+        isPlainTextFileName(fileName) {
+            const lower = fileName.toLowerCase();
+            return lower.endsWith(".txt") || lower.endsWith(".txt.gz");
+        },
+        getTextUploadBaseName(fileName) {
+            const lower = fileName.toLowerCase();
+            if (lower.endsWith(".txt.gz")) {
+                return fileName.slice(0, -7);
+            }
+            return fileName.replace(/\.[^/.]+$/, "");
+        },
         getFilePath(fileItem) {
             const file = fileItem?.file || fileItem;
             return (
@@ -197,8 +208,7 @@ export default defineComponent({
             let skipped = 0;
 
             fileList.forEach((file) => {
-                const ext = file.name.split(".").pop()?.toLowerCase();
-                if (ext !== "txt") {
+                if (!this.isPlainTextFileName(file.name)) {
                     skipped += 1;
                     return;
                 }
@@ -222,7 +232,7 @@ export default defineComponent({
 
             if (skipped > 0) {
                 notify({
-                    text: `Skipped ${skipped} non-txt file${skipped > 1 ? "s" : ""} from folder`,
+                    text: `Skipped ${skipped} non-text file${skipped > 1 ? "s" : ""} from folder`,
                     type: "warn",
                 });
             }
@@ -301,8 +311,7 @@ export default defineComponent({
                 const fileName = f?.file?.name || f?.name || "file";
                 try {
                     const file = f.file;
-                    const ext = file.name.split(".").pop()?.toLowerCase();
-                    let title = file.name.replace(/\.[^/.]+$/, "");
+                    let title = this.getTextUploadBaseName(file.name);
                     let artist = "";
                     const filePath = this.getFilePath(f);
                     const parsed = this.parsePattern(pattern, filePath);
@@ -318,7 +327,7 @@ export default defineComponent({
                         parsedType = this.resolveTypeLabel(parsed.type) || "";
                     }
 
-                    if (ext !== "txt" && !parsed) {
+                    if (!this.isPlainTextFileName(file.name) && !parsed) {
                         // Try to parse the file with AlphaTab to ensure it's valid
                         const data = await file.arrayBuffer();
                         const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(
