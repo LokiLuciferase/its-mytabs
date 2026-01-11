@@ -23,6 +23,18 @@ export default defineComponent({
             tabTypeList,
         };
     },
+    watch: {
+        files: {
+            handler(newFiles) {
+                const hasPlainText = newFiles.some((fileItem) => {
+                    const file = fileItem?.file || fileItem;
+                    return file?.name && this.isPlainTextFileName(file.name);
+                });
+                this.folderModeEnabled = hasPlainText;
+            },
+            deep: true,
+        },
+    },
     methods: {
         onPatternSummaryClick(event) {
             if (!this.folderModeEnabled) {
@@ -65,7 +77,7 @@ export default defineComponent({
             return { cleaned, type };
         },
         addMapping() {
-            this.mappings.push({ from: "", to: "", useRegex: true });
+            this.mappings.push({ from: "", to: "", useRegex: false });
         },
         removeMapping(index) {
             this.mappings.splice(index, 1);
@@ -404,7 +416,7 @@ export default defineComponent({
             :aria-disabled="!folderModeEnabled"
         >
             <summary class="pattern-summary" @click="onPatternSummaryClick">
-                Path parsing (for directories of .txt files)
+                Path parsing (for .txt and .pdf files)
             </summary>
             <div class="mt-3">
                 <label class="form-label" for="pathPattern">Path pattern (optional)</label>
@@ -418,7 +430,7 @@ export default defineComponent({
                     :disabled="!folderModeEnabled"
                 />
                 <div class="form-text" v-pre>
-                    Use {{Artist}}, {{Title}}, or {{Type}} to parse from folder paths before upload. If both
+                    Use {{Artist}}, {{Title}} and {{Type}} to parse metadata from file paths before upload. If both
                     path and mappings set a type, the path value wins.
                 </div>
                 <div class="form-check mt-3">
@@ -458,9 +470,9 @@ export default defineComponent({
                         </button>
                     </div>
                     <div v-if="mappings.length === 0" class="form-text" v-pre>
-                        Add replacements like <code>_chd</code> -> <code>(Chords)</code> or
-                        regex <code>_v(\\d+)</code> -> <code>Version $1</code>. Set type with
-                        <code>{{Type:Chords}}</code>.
+                        Perform replacements in the Title like <code>_chd</code> -> <code>(Chords)</code> or
+                        regex <code>_v(\\d+)</code> -> <code>Version $1</code>. Capture the type with
+                        <code>{{Type:Chords}}</code>, <code>{{Type:Tabs}}</code> or <code>{{Type:Bass}}</code>.
                     </div>
                     <div v-for="(mapping, index) in mappings" :key="index" class="mapping-row">
                         <input
@@ -474,7 +486,7 @@ export default defineComponent({
                             v-model="mapping.to"
                             class="form-control"
                             type="text"
-                            placeholder="Replace"
+                            placeholder="Replace or Metadata Capture"
                             :disabled="!folderModeEnabled"
                         />
                         <div class="form-check form-switch">
@@ -572,8 +584,10 @@ export default defineComponent({
 }
 
 .mapping-section code {
-    background: #f1f3f5;
+    background: #eef1f4;
+    border: 1px solid #dee2e6;
     border-radius: 4px;
+    color: #495057;
     padding: 0 6px;
 }
 
