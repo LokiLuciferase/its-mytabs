@@ -1258,7 +1258,7 @@ export default defineComponent({
 </script>
 
 <template>
-    <div class="main" :class='{ "light": this.setting.scoreColor === "light" }'>
+    <div class="main" :class='{ "light": this.setting.scoreColor === "light", "pdf-viewer": isPdf }'>
         <h1>{{ tab.title }}</h1>
         <h2>{{ tab.artist }}</h2>
         <template v-if="!isPlainText">
@@ -1268,7 +1268,7 @@ export default defineComponent({
             <div class="text-tab-actions" v-if="isLoggedIn">
                 <button class="btn btn-secondary" @click="edit()">Edit</button>
             </div>
-            <div class="text-tab">
+            <div class="text-tab" :class='{ "text-tab-pdf-container": isPdf }'>
                 <iframe v-if="isPdf" class="text-tab-pdf" :src="pdfTabUrl" title="PDF Tab"></iframe>
                 <pre v-else class="text-tab-content">{{ textTabContent }}</pre>
             </div>
@@ -1426,6 +1426,11 @@ $youtube-height: 200px;
     }
 }
 
+.main.pdf-viewer {
+    width: 100%;
+    margin: 0;
+}
+
 
 .yt-margin {
     width: 1px;
@@ -1441,7 +1446,8 @@ $youtube-height: 200px;
     border: 1px solid #2c2c30;
     border-radius: 8px;
     padding: 16px;
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .main.light .text-tab {
@@ -1463,6 +1469,10 @@ $youtube-height: 200px;
     height: 80vh;
     border: 0;
     display: block;
+}
+
+.text-tab-pdf-container {
+    padding: 0;
 }
 
 .toolbar {

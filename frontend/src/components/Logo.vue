@@ -26,7 +26,7 @@ export default {
 
 <style scoped lang="scss">
 .navbar-brand {
-    $width: 100px;
+    $width: 60px;
 
     display: flex;
     align-items: center;
@@ -35,7 +35,7 @@ export default {
     width: $width;
     height: $width;
     font-weight: bold;
-    font-size: 20px;
+    font-size: 16px;
 
     // gradient primary color
     $startColor: #7e7edf;
@@ -44,7 +44,7 @@ export default {
     transition: all ease-in-out 0.3s;
 
     div {
-        line-height: 22px;
+        line-height: 18px;
     }
 
     &:hover {

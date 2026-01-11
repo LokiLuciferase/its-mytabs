@@ -77,7 +77,7 @@ export default defineComponent({
 @import "../styles/vars.scss";
 
 .my-navbar {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     border-bottom: 1px solid #3c3b40;
     display: flex;
     justify-content: center;
@@ -88,7 +88,7 @@ export default defineComponent({
     }
 
     .toolbar {
-        padding: 0 30px 0 40px;
+        padding: 0 16px;
         flex: 1;
         display: flex;
         justify-content: space-between;
@@ -96,7 +96,7 @@ export default defineComponent({
         & > div {
             flex-grow: 4;
             display: flex;
-            column-gap: 50px;
+            column-gap: 20px;
 
             &.left {
                 justify-content: flex-start;
@@ -110,14 +110,13 @@ export default defineComponent({
                 display: flex;
                 align-items: center;
                 justify-content: center;
-
-                // item from top to bottom
-                flex-direction: column;
+                flex-direction: row;
+                gap: 6px;
             }
         }
 
         svg {
-            font-size: 20px;
+            font-size: 16px;
         }
     }
 }
@@ -125,16 +124,16 @@ export default defineComponent({
 .mobile {
     .my-navbar {
         .navbar-brand {
-            width: 75px;
-            height: 75px;
-            font-size: 15px;
+            width: 50px;
+            height: 50px;
+            font-size: 14px;
         }
 
         .toolbar {
-            padding: 0 0 0 10px;
+            padding: 0 8px;
 
             & > div {
-                column-gap: 10px;
+                column-gap: 8px;
             }
         }
     }
