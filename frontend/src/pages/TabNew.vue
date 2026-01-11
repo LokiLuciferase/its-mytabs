@@ -139,7 +139,7 @@ export default defineComponent({
         },
         isPlainTextFileName(fileName) {
             const lower = fileName.toLowerCase();
-            return lower.endsWith(".txt") || lower.endsWith(".txt.gz");
+            return lower.endsWith(".txt") || lower.endsWith(".txt.gz") || lower.endsWith(".pdf");
         },
         getTextUploadBaseName(fileName) {
             const lower = fileName.toLowerCase();

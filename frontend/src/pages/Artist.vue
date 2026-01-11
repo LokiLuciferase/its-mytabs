@@ -20,6 +20,8 @@ export default defineComponent({
             displayLimit: 50,
             observer: null,
             actionsTabId: null,
+            sortKey: "createdAt",
+            sortDir: "desc",
             selectedType: "",
             selectedFormat: "",
             tabTypeList,
@@ -45,8 +47,24 @@ export default defineComponent({
                 return true;
             });
         },
+        sortedTabs() {
+            const list = [...this.filteredTabs];
+            const key = this.sortKey;
+            const dir = this.sortDir === "asc" ? 1 : -1;
+            list.sort((a, b) => {
+                if (key === "createdAt") {
+                    const aValue = new Date(a?.createdAt || 0).getTime();
+                    const bValue = new Date(b?.createdAt || 0).getTime();
+                    return (aValue - bValue) * dir;
+                }
+                const aValue = (a?.[key] || "").toString();
+                const bValue = (b?.[key] || "").toString();
+                return aValue.localeCompare(bValue) * dir;
+            });
+            return list;
+        },
         visibleTabs() {
-            return this.filteredTabs.slice(0, this.displayLimit);
+            return this.sortedTabs.slice(0, this.displayLimit);
         },
     },
     async mounted() {
@@ -78,6 +96,7 @@ export default defineComponent({
             const ext = this.formatKey(tab);
             const map = {
                 txt: "Plain Text",
+                pdf: "PDF",
                 gp: "GuitarPro",
                 gpx: "GuitarPro",
                 gp3: "GuitarPro",
@@ -98,6 +117,20 @@ export default defineComponent({
                 return "guitarpro";
             }
             return ext;
+        },
+        formatDate(value) {
+            if (!value) {
+                return "Unknown";
+            }
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return "Unknown";
+            }
+            return date.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+            });
         },
         resetFilters() {
             this.selectedType = "";
@@ -171,6 +204,14 @@ export default defineComponent({
         },
         scrollToTop() {
             window.scrollTo({ top: 0, behavior: "smooth" });
+        },
+        setSort(key) {
+            if (this.sortKey === key) {
+                this.sortDir = this.sortDir === "asc" ? "desc" : "asc";
+                return;
+            }
+            this.sortKey = key;
+            this.sortDir = key === "createdAt" ? "desc" : "asc";
         },
         async updateArtistName() {
             const updatedName = this.newArtistName.trim();
@@ -334,6 +375,7 @@ export default defineComponent({
             <select class="form-select" v-model="selectedFormat" aria-label="Filter by format">
                 <option value="">All formats</option>
                 <option value="txt">Plain Text</option>
+                <option value="pdf">PDF</option>
                 <option value="guitarpro">GuitarPro</option>
                 <option value="musicxml">MusicXML</option>
                 <option value="capx">Capella</option>
@@ -348,6 +390,12 @@ export default defineComponent({
                 <tr>
                     <th scope="col">Title</th>
                     <th scope="col">Type</th>
+                    <th scope="col">
+                        <button type="button" class="sort-button" @click="setSort('createdAt')">
+                            Date Added
+                            <span v-if="sortKey === 'createdAt'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
+                        </button>
+                    </th>
                     <th scope="col">Format</th>
                 </tr>
             </thead>
@@ -368,6 +416,7 @@ export default defineComponent({
                         </div>
                     </td>
                     <td>{{ tab.type }}</td>
+                    <td>{{ formatDate(tab.createdAt) }}</td>
                     <td>{{ formatLabel(tab) }}</td>
                 </tr>
             </tbody>
@@ -462,6 +511,15 @@ export default defineComponent({
 .tab-table tbody tr:hover .action-gear {
     opacity: 1;
     pointer-events: auto;
+}
+
+.sort-button {
+    background: none;
+    border: none;
+    font-weight: 600;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
 }
 
 .tab-link {

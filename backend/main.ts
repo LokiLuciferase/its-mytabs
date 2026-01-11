@@ -571,6 +571,38 @@ export async function main() {
         }
     });
 
+    // Serve PDF tab
+    app.get("/api/tab/:id/pdf", async (c) => {
+        try {
+            const id = parseInt(c.req.param("id") || "");
+            if (isNaN(id)) {
+                throw new Error("Invalid tab ID");
+            }
+
+            const tab = await getTab(id);
+
+            if (!tab.public) {
+                await checkLogin(c);
+            }
+
+            const ext = tab.filename.split(".").pop()?.toLowerCase();
+            if (ext !== "pdf") {
+                throw new Error("Tab file is not a PDF file");
+            }
+
+            const data = await getTabFileData(tab);
+            const encodedOriginalFilename = encodeURIComponent(tab.originalFilename);
+
+            return c.body(data, 200, {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": `inline; filename="${encodedOriginalFilename}"`,
+            });
+        } catch (e) {
+            console.error(e);
+            return generalError(c, e);
+        }
+    });
+
     // Serve tab file
     app.get("/api/tab/:id/file", async (c) => {
         try {

@@ -48,7 +48,9 @@ export default defineComponent({
             enableBackingTrack: true,
             isLooping: false,
             isPlainText: false,
+            isPdf: false,
             textTabContent: "",
+            pdfTabUrl: "",
             speed: 100,
             ready: false,
             selectedTrack: 0,
@@ -372,15 +374,21 @@ export default defineComponent({
                 this.audioList = data.audioList;
             }
 
-            this.isPlainText = this.isPlainTextTab(this.tab);
+            this.isPdf = this.isPdfTab(this.tab);
+            this.isPlainText = this.isPlainTextTab(this.tab) || this.isPdf;
             this.textTabContent = "";
+            this.pdfTabUrl = "";
 
             if (this.isPlainText) {
                 this.tracks = [];
                 this.showTrackList = false;
                 this.showAudioList = false;
                 this.currentAudio = "none";
-                this.textTabContent = await this.fetchTextTab();
+                if (this.isPdf) {
+                    this.pdfTabUrl = this.getPdfUrl();
+                } else {
+                    this.textTabContent = await this.fetchTextTab();
+                }
                 this.ready = true;
                 return;
             }
@@ -435,6 +443,10 @@ export default defineComponent({
             return baseURL + `/api/tab/${this.tabID}/file?tempToken=${tempToken}`;
         },
 
+        getPdfUrl() {
+            return baseURL + `/api/tab/${this.tabID}/pdf`;
+        },
+
         async getTempToken() {
             const fileURL = baseURL + `/api/tab/${this.tabID}/temp-token`;
 
@@ -462,6 +474,10 @@ export default defineComponent({
 
         isPlainTextTab(tab) {
             return this.getTabExtension(tab?.filename || "") === "txt";
+        },
+
+        isPdfTab(tab) {
+            return this.getTabExtension(tab?.filename || "") === "pdf";
         },
 
         async fetchTextTab() {
@@ -1253,7 +1269,8 @@ export default defineComponent({
                 <button class="btn btn-secondary" @click="edit()">Edit</button>
             </div>
             <div class="text-tab">
-                <pre class="text-tab-content">{{ textTabContent }}</pre>
+                <iframe v-if="isPdf" class="text-tab-pdf" :src="pdfTabUrl" title="PDF Tab"></iframe>
+                <pre v-else class="text-tab-content">{{ textTabContent }}</pre>
             </div>
         </template>
 
@@ -1439,6 +1456,13 @@ $youtube-height: 200px;
     padding-top: 0.3em;
     margin: 0;
     white-space: pre;
+}
+
+.text-tab-pdf {
+    width: 100%;
+    height: 80vh;
+    border: 0;
+    display: block;
 }
 
 .toolbar {

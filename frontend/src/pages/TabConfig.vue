@@ -184,7 +184,7 @@ export default defineComponent({
                 const ext = fileName.split(".").pop();
                 const isGzipText = fileName.endsWith(".txt.gz");
 
-                if (ext !== "txt" && !isGzipText) {
+                if (ext !== "txt" && ext !== "pdf" && !isGzipText) {
                     // Try to parse the file with AlphaTab to ensure it's valid
                     const data = await file.arrayBuffer();
                     alphaTab.importer.ScoreLoader.loadScoreFromBytes(

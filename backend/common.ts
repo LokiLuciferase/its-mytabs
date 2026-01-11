@@ -7,6 +7,7 @@ export const supportedFormatList = [
     "musicxml",
     "capx",
     "txt",
+    "pdf",
 ];
 
 /**
@@ -31,6 +32,7 @@ export const tabTypeList = [
     "Bass Tabs",
     "Drum Tabs",
     "Guitar Chords",
+    "Sheet Music",
 ];
 
 export const midiProgramCodeList = {

@@ -10,7 +10,7 @@ export type SignUpData = z.infer<typeof SignUpSchema>;
 const title = z.string().min(1);
 const artist = z.string().min(0);
 const isPublic = z.boolean();
-const tabType = z.enum(["Guitar Tabs", "Bass Tabs", "Drum Tabs", "Guitar Chords"]);
+const tabType = z.enum(["Guitar Tabs", "Bass Tabs", "Drum Tabs", "Guitar Chords", "Sheet Music"]);
 
 export const TabInfoSchema = z.object({
     id: z.number().default(-1),

@@ -12,8 +12,8 @@ export default defineComponent({
             ready: false,
             isLoggedIn: false,
             searchQuery: "",
-            sortKey: "artist",
-            sortDir: "asc",
+            sortKey: "createdAt",
+            sortDir: "desc",
             pageSize: 50,
             displayLimit: 50,
             observer: null,
@@ -81,8 +81,13 @@ export default defineComponent({
             const key = this.sortKey;
             const dir = this.sortDir === "asc" ? 1 : -1;
             list.sort((a, b) => {
-                const aValue = (a[key] || "").toString();
-                const bValue = (b[key] || "").toString();
+                if (key === "createdAt") {
+                    const aValue = new Date(a?.createdAt || 0).getTime();
+                    const bValue = new Date(b?.createdAt || 0).getTime();
+                    return (aValue - bValue) * dir;
+                }
+                const aValue = (a?.[key] || "").toString();
+                const bValue = (b?.[key] || "").toString();
                 return aValue.localeCompare(bValue) * dir;
             });
             return list;
@@ -111,6 +116,7 @@ export default defineComponent({
             const ext = this.formatKey(tab);
             const map = {
                 txt: "Plain Text",
+                pdf: "PDF",
                 gp: "GuitarPro",
                 gpx: "GuitarPro",
                 gp3: "GuitarPro",
@@ -120,6 +126,20 @@ export default defineComponent({
                 capx: "Capella",
             };
             return map[ext] || ext.toUpperCase() || "Unknown";
+        },
+        formatDate(value) {
+            if (!value) {
+                return "Unknown";
+            }
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return "Unknown";
+            }
+            return date.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+            });
         },
         resetFilters() {
             this.selectedType = "";
@@ -174,7 +194,7 @@ export default defineComponent({
                 return;
             }
             this.sortKey = key;
-            this.sortDir = "asc";
+            this.sortDir = key === "createdAt" ? "desc" : "asc";
         },
         async deleteTab(id, title, artist) {
             if (!confirm(`Are you sure you want to delete ${artist} - ${title}?`)) return;
@@ -273,6 +293,7 @@ export default defineComponent({
                 <select class="form-select" v-model="selectedFormat" aria-label="Filter by format">
                     <option value="">All formats</option>
                     <option value="txt">Plain Text</option>
+                    <option value="pdf">PDF</option>
                     <option value="guitarpro">GuitarPro</option>
                     <option value="musicxml">MusicXML</option>
                     <option value="capx">Capella</option>
@@ -311,6 +332,12 @@ export default defineComponent({
                             <span v-if="sortKey === 'type'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
                         </button>
                     </th>
+                    <th scope="col">
+                        <button type="button" class="sort-button" @click="setSort('createdAt')">
+                            Date Added
+                            <span v-if="sortKey === 'createdAt'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
+                        </button>
+                    </th>
                     <th scope="col">Format</th>
                 </tr>
             </thead>
@@ -336,6 +363,7 @@ export default defineComponent({
                         </div>
                     </td>
                     <td>{{ tab.type }}</td>
+                    <td>{{ formatDate(tab.createdAt) }}</td>
                     <td>{{ formatLabel(tab) }}</td>
                 </tr>
             </tbody>
