@@ -1435,7 +1435,8 @@ $youtube-height: 200px;
 .text-tab-content {
     font-family: "Courier New", monospace;
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 0.6;
+    padding-top: 0.3em;
     margin: 0;
     white-space: pre;
 }
