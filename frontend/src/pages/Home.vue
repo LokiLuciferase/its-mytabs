@@ -1,7 +1,7 @@
 <script>
 import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
-import { baseURL } from "../app.js";
+import { baseURL, checkFetch } from "../app.js";
 import { isLoggedIn } from "../auth-client.js";
 import { tabTypeList } from "../../../backend/common.js";
 
@@ -84,6 +84,11 @@ export default defineComponent({
                 if (key === "createdAt") {
                     const aValue = new Date(a?.createdAt || 0).getTime();
                     const bValue = new Date(b?.createdAt || 0).getTime();
+                    return (aValue - bValue) * dir;
+                }
+                if (key === "favorite") {
+                    const aValue = a?.favorite ? 1 : 0;
+                    const bValue = b?.favorite ? 1 : 0;
                     return (aValue - bValue) * dir;
                 }
                 const aValue = (a?.[key] || "").toString();
@@ -194,7 +199,7 @@ export default defineComponent({
                 return;
             }
             this.sortKey = key;
-            this.sortDir = key === "createdAt" ? "desc" : "asc";
+            this.sortDir = key === "createdAt" || key === "favorite" ? "desc" : "asc";
         },
         async deleteTab(id, title, artist) {
             if (!confirm(`Are you sure you want to delete ${artist} - ${title}?`)) return;
@@ -216,6 +221,26 @@ export default defineComponent({
                     const data = await res.json();
                     throw new Error(data.message || "Failed to delete tab");
                 }
+            } catch (error) {
+                notify({
+                    text: error.message,
+                    type: "error",
+                });
+            }
+        },
+        async toggleFavorite(tab) {
+            const nextFavorite = !tab.favorite;
+            try {
+                const res = await fetch(baseURL + `/api/tab/${tab.id}/favorite`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ favorite: nextFavorite }),
+                });
+                await checkFetch(res);
+                tab.favorite = nextFavorite;
             } catch (error) {
                 notify({
                     text: error.message,
@@ -326,6 +351,12 @@ export default defineComponent({
                             <span v-if="sortKey === 'title'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
                         </button>
                     </th>
+                    <th scope="col" class="favorite-header">
+                        <button type="button" class="sort-button" @click="setSort('favorite')">
+                            ★
+                            <span v-if="sortKey === 'favorite'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
+                        </button>
+                    </th>
                     <th scope="col">
                         <button type="button" class="sort-button" @click="setSort('type')">
                             Type
@@ -361,6 +392,18 @@ export default defineComponent({
                                 ⚙
                             </button>
                         </div>
+                    </td>
+                    <td class="favorite-cell">
+                        <button
+                            class="btn btn-outline-secondary btn-sm favorite-button"
+                            :class="tab.favorite ? 'is-favorite' : ''"
+                            @click="toggleFavorite(tab)"
+                            :aria-pressed="tab.favorite ? 'true' : 'false'"
+                            :aria-label="tab.favorite ? 'Remove from favorites' : 'Add to favorites'"
+                            title="Favorite"
+                        >
+                            {{ tab.favorite ? "★" : "☆" }}
+                        </button>
                     </td>
                     <td>{{ tab.type }}</td>
                     <td>{{ formatDate(tab.createdAt) }}</td>
@@ -466,6 +509,28 @@ export default defineComponent({
 
 .tab-link:hover {
     text-decoration: underline;
+}
+
+.favorite-button {
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 6px;
+    color: #c2c2c2;
+}
+
+.favorite-button.is-favorite {
+    color: #f5c518;
+}
+
+.favorite-button:hover {
+    color: #f0b90b;
+}
+
+.favorite-header,
+.favorite-cell {
+    text-align: center;
+    width: 1%;
+    white-space: nowrap;
 }
 
 .scroll-sentinel {

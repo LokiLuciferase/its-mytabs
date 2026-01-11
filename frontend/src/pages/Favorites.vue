@@ -1,7 +1,7 @@
 <script>
 import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
-import { baseURL, checkFetch, generalError } from "../app.js";
+import { baseURL, checkFetch } from "../app.js";
 import { isLoggedIn } from "../auth-client.js";
 import { tabTypeList } from "../../../backend/common.js";
 
@@ -10,34 +10,70 @@ export default defineComponent({
         return {
             tabList: [],
             ready: false,
-            artistName: "",
-            newArtistName: "",
             isLoggedIn: false,
-            isSaving: false,
-            isEditing: false,
-            artistSlug: "",
+            searchQuery: "",
+            sortKey: "createdAt",
+            sortDir: "desc",
             pageSize: 50,
             displayLimit: 50,
             observer: null,
             actionsTabId: null,
-            sortKey: "createdAt",
-            sortDir: "desc",
             selectedType: "",
             selectedFormat: "",
             tabTypeList,
             showScrollTop: false,
         };
     },
+
+    async mounted() {
+        this.isLoggedIn = await isLoggedIn();
+
+        if (!this.isLoggedIn) {
+            this.$router.push("/login");
+            return;
+        }
+
+        try {
+            const res = await fetch(baseURL + "/api/tabs", { credentials: "include" });
+            const data = await res.json();
+            this.tabList = data.tabs;
+            if (!this.tabList.some((tab) => tab.favorite)) {
+                this.$router.replace("/tabs");
+                return;
+            }
+            this.ready = true;
+
+            await this.$nextTick();
+            this.$refs.searchInput?.focus();
+            this.setupObserver();
+            this.onScroll();
+            window.addEventListener("scroll", this.onScroll, { passive: true });
+        } catch (error) {
+            notify({
+                text: error.message,
+                type: "error",
+            });
+        }
+    },
+
     computed: {
-        baseTabs() {
-            const artistKey = this.artistSlug;
-            return this.tabList.filter((tab) => {
-                const tabArtist = this.slugify(tab.artist || "Unknown Artist");
-                return tabArtist === artistKey;
+        favoriteTabList() {
+            return this.tabList.filter((tab) => tab.favorite);
+        },
+        filteredTabList() {
+            if (!this.searchQuery.trim()) return this.favoriteTabList;
+
+            const query = this.searchQuery.trim().toLowerCase();
+
+            return this.favoriteTabList.filter((tab) => {
+                const title = (tab.title || "").toLowerCase();
+                const artist = (tab.artist || "").toLowerCase();
+                const type = (tab.type || "").toLowerCase();
+                return title.includes(query) || artist.includes(query) || type.includes(query);
             });
         },
-        filteredTabs() {
-            return this.baseTabs.filter((tab) => {
+        filteredAndTypedList() {
+            return this.filteredTabList.filter((tab) => {
                 if (this.selectedType && tab.type !== this.selectedType) {
                     return false;
                 }
@@ -47,8 +83,8 @@ export default defineComponent({
                 return true;
             });
         },
-        sortedTabs() {
-            const list = [...this.filteredTabs];
+        sortedTabList() {
+            const list = [...this.filteredAndTypedList];
             const key = this.sortKey;
             const dir = this.sortDir === "asc" ? 1 : -1;
             list.sort((a, b) => {
@@ -68,34 +104,25 @@ export default defineComponent({
             });
             return list;
         },
-        visibleTabs() {
-            return this.sortedTabs.slice(0, this.displayLimit);
+        visibleTabList() {
+            return this.sortedTabList.slice(0, this.displayLimit);
         },
     },
-    async mounted() {
-        await this.ensureLogin();
-        await this.load();
-        this.onScroll();
-        window.addEventListener("scroll", this.onScroll, { passive: true });
-    },
-    watch: {
-        "$route.params.name": {
-            async handler() {
-                await this.load();
-            },
-        },
-    },
+
     methods: {
-        slugify(value) {
-            return (value || "")
-                .toString()
-                .normalize("NFKD")
-                .replace(/&/g, " and ")
-                .replace(/[^\w\s-]/g, "")
-                .trim()
-                .toLowerCase()
-                .replace(/[\s_-]+/g, "-")
-                .replace(/^-+|-+$/g, "");
+        getTabById(id) {
+            return this.sortedTabList.find((tab) => tab.id === id) || null;
+        },
+        formatKey(tab) {
+            const name = tab?.filename || "";
+            return name.split(".").pop()?.toLowerCase() || "";
+        },
+        formatFilterKey(tab) {
+            const ext = this.formatKey(tab);
+            if (["gp", "gpx", "gp3", "gp4", "gp5"].includes(ext)) {
+                return "guitarpro";
+            }
+            return ext;
         },
         formatLabel(tab) {
             const ext = this.formatKey(tab);
@@ -111,17 +138,6 @@ export default defineComponent({
                 capx: "Capella",
             };
             return map[ext] || ext.toUpperCase() || "Unknown";
-        },
-        formatKey(tab) {
-            const name = tab?.filename || "";
-            return name.split(".").pop()?.toLowerCase() || "";
-        },
-        formatFilterKey(tab) {
-            const ext = this.formatKey(tab);
-            if (["gp", "gpx", "gp3", "gp4", "gp5"].includes(ext)) {
-                return "guitarpro";
-            }
-            return ext;
         },
         formatDate(value) {
             if (!value) {
@@ -141,48 +157,22 @@ export default defineComponent({
             this.selectedType = "";
             this.selectedFormat = "";
         },
-        getTabById(id) {
-            return this.filteredTabs.find((tab) => tab.id === id) || null;
+        slugify(value) {
+            return (value || "")
+                .toString()
+                .normalize("NFKD")
+                .replace(/&/g, " and ")
+                .replace(/[^\w\s-]/g, "")
+                .trim()
+                .toLowerCase()
+                .replace(/[\s_-]+/g, "-")
+                .replace(/^-+|-+$/g, "");
         },
-        async ensureLogin() {
-            this.isLoggedIn = await isLoggedIn();
-            if (!this.isLoggedIn) {
-                this.$router.push("/login");
-            }
+        artistLabel(tab) {
+            return tab.artist || "Unknown Artist";
         },
-        decodeArtistName() {
-            const raw = this.$route.params.name;
-            if (typeof raw !== "string") {
-                return "";
-            }
-            try {
-                return decodeURIComponent(raw);
-            } catch {
-                return raw;
-            }
-        },
-        async load() {
-            this.artistSlug = this.decodeArtistName();
-            try {
-                const res = await fetch(baseURL + "/api/tabs", { credentials: "include" });
-                await checkFetch(res);
-                const data = await res.json();
-                this.tabList = data.tabs;
-                const match = this.filteredTabs[0];
-                this.artistName = match?.artist || this.artistSlug;
-                this.newArtistName = this.artistName;
-                this.isEditing = false;
-                this.ready = true;
-                this.displayLimit = this.pageSize;
-                await this.$nextTick();
-                this.setupObserver();
-                this.onScroll();
-            } catch (error) {
-                notify({
-                    text: error.message,
-                    type: "error",
-                });
-            }
+        artistRoute(tab) {
+            return `/artist/${this.slugify(this.artistLabel(tab))}`;
         },
         setupObserver() {
             if (this.observer) {
@@ -196,7 +186,7 @@ export default defineComponent({
                 if (entries.some((entry) => entry.isIntersecting)) {
                     this.displayLimit = Math.min(
                         this.displayLimit + this.pageSize,
-                        this.filteredTabs.length,
+                        this.sortedTabList.length,
                     );
                 }
             }, {
@@ -218,82 +208,31 @@ export default defineComponent({
             this.sortKey = key;
             this.sortDir = key === "createdAt" || key === "favorite" ? "desc" : "asc";
         },
-        async updateArtistName() {
-            const updatedName = this.newArtistName.trim();
-            if (!updatedName) {
-                notify({ text: "Artist name cannot be empty", type: "error" });
-                return;
-            }
-            if (updatedName === this.artistName) {
-                this.isEditing = false;
-                return;
-            }
-            if (this.filteredTabs.length === 0) {
-                notify({ text: "No tabs found for this artist", type: "error" });
-                return;
-            }
+        async deleteTab(id, title, artist) {
+            if (!confirm(`Are you sure you want to delete ${artist} - ${title}?`)) return;
 
-            this.isSaving = true;
-            try {
-                await Promise.all(
-                    this.filteredTabs.map(async (tab) => {
-                        const res = await fetch(baseURL + `/api/tab/${tab.id}`, {
-                            method: "POST",
-                            credentials: "include",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                title: tab.title,
-                                artist: updatedName,
-                                type: tab.type,
-                                public: tab.public,
-                            }),
-                        });
-                        await checkFetch(res);
-                    }),
-                );
-
-                notify({
-                    text: "Artist name updated successfully",
-                    type: "success",
-                });
-
-                this.artistName = updatedName;
-                this.newArtistName = updatedName;
-                this.artistSlug = this.slugify(updatedName);
-                await this.load();
-                this.$router.replace(`/artist/${this.artistSlug}`);
-            } catch (error) {
-                generalError(error);
-            } finally {
-                this.isSaving = false;
-                this.isEditing = false;
-            }
-        },
-        cancelEdit() {
-            this.newArtistName = this.artistName;
-            this.isEditing = false;
-        },
-        startEdit() {
-            this.isEditing = true;
-            this.$nextTick(() => {
-                this.$refs.artistNameInput?.focus();
-                this.$refs.artistNameInput?.select();
-            });
-        },
-        async deleteTab(id, title) {
-            if (!confirm(`Are you sure you want to delete ${title}?`)) return;
             try {
                 const res = await fetch(baseURL + `/api/tab/${id}`, {
                     method: "DELETE",
                     credentials: "include",
                 });
-                await checkFetch(res);
-                this.tabList = this.tabList.filter((tab) => tab.id !== id);
-                notify({ text: "Tab deleted successfully", type: "success" });
+
+                if (res.status === 200) {
+                    this.tabList = this.tabList.filter((tab) => tab.id !== id);
+
+                    notify({
+                        text: "Tab deleted successfully",
+                        type: "success",
+                    });
+                } else {
+                    const data = await res.json();
+                    throw new Error(data.message || "Failed to delete tab");
+                }
             } catch (error) {
-                generalError(error);
+                notify({
+                    text: error.message,
+                    type: "error",
+                });
             }
         },
         async toggleFavorite(tab) {
@@ -310,16 +249,31 @@ export default defineComponent({
                 await checkFetch(res);
                 tab.favorite = nextFavorite;
             } catch (error) {
-                generalError(error);
+                notify({
+                    text: error.message,
+                    type: "error",
+                });
             }
         },
     },
     watch: {
+        searchQuery() {
+            this.displayLimit = this.pageSize;
+            this.$nextTick(() => this.setupObserver());
+        },
         selectedType() {
             this.displayLimit = this.pageSize;
             this.$nextTick(() => this.setupObserver());
         },
         selectedFormat() {
+            this.displayLimit = this.pageSize;
+            this.$nextTick(() => this.setupObserver());
+        },
+        sortKey() {
+            this.displayLimit = this.pageSize;
+            this.$nextTick(() => this.setupObserver());
+        },
+        sortDir() {
             this.displayLimit = this.pageSize;
             this.$nextTick(() => this.setupObserver());
         },
@@ -334,90 +288,88 @@ export default defineComponent({
 </script>
 
 <template>
-    <div class="container my-container" v-if="ready">
-        <div class="mt-4 mb-4">
-            <router-link to="/tabs" class="btn btn-secondary">Back to Tabs</router-link>
-        </div>
+    <div class="container my-container">
+        <div class="search-section mb-4 mt-5 pe-3 ps-3" v-if="ready">
+            <div class="input-group">
+                <span class="input-group-text">
+                    <font-awesome-icon icon="magnifying-glass" />
+                </span>
 
-        <div class="artist-header mb-3">
-            <div class="artist-title">
                 <input
-                    v-if="isEditing"
-                    id="artistName"
-                    ref="artistNameInput"
                     type="text"
-                    class="form-control artist-input"
-                    v-model="newArtistName"
-                    :disabled="isSaving"
-                    @keyup.enter="updateArtistName"
-                    @keyup.esc="cancelEdit"
+                    class="form-control search-input"
+                    v-model="searchQuery"
+                    placeholder="Search favorites by title or artist..."
+                    ref="searchInput"
+                    aria-label="Search tabs"
                 />
-                <h2 v-else>{{ artistName }}</h2>
-            </div>
-            <div class="artist-actions">
+
                 <button
-                    v-if="!isEditing"
-                    class="btn btn-sm btn-outline-secondary"
+                    class="input-group-text bg-transparent border-0 cursor-pointer"
                     type="button"
-                    @click="startEdit"
-                    aria-label="Edit artist name"
+                    @click='searchQuery = ""'
+                    v-if="searchQuery"
+                    aria-label="Clear search"
                 >
-                    ✎
+                    ✕
                 </button>
-                <template v-else>
-                    <button
-                        class="btn btn-sm btn-primary"
-                        :disabled="isSaving"
-                        @click="updateArtistName"
-                    >
-                        {{ isSaving ? "Saving..." : "Save" }}
-                    </button>
-                    <button
-                        class="btn btn-sm btn-outline-secondary"
-                        :disabled="isSaving"
-                        @click="cancelEdit"
-                    >
-                        Cancel
-                    </button>
-                </template>
+            </div>
+
+            <div class="filters mt-3">
+                <select class="form-select" v-model="selectedType" aria-label="Filter by type">
+                    <option value="">All types</option>
+                    <option v-for="type in tabTypeList" :key="type" :value="type">
+                        {{ type }}
+                    </option>
+                </select>
+                <select class="form-select" v-model="selectedFormat" aria-label="Filter by format">
+                    <option value="">All formats</option>
+                    <option value="txt">Plain Text</option>
+                    <option value="pdf">PDF</option>
+                    <option value="guitarpro">GuitarPro</option>
+                    <option value="musicxml">MusicXML</option>
+                    <option value="capx">Capella</option>
+                </select>
+                <button class="btn btn-outline-secondary" type="button" @click="resetFilters">
+                    Reset
+                </button>
             </div>
         </div>
 
-        <div class="mb-3">
-            Tabs for this artist: {{ filteredTabs.length }}
+        <div class="mb-4 ms-3" v-if="ready">
+            Favorite Tabs: {{ filteredAndTypedList.length }}
+            <span class="text-muted">
+                (of {{ tabList.length }} total)
+            </span>
         </div>
 
-        <div class="filters mb-3">
-            <select class="form-select" v-model="selectedType" aria-label="Filter by type">
-                <option value="">All types</option>
-                <option v-for="type in tabTypeList" :key="type" :value="type">
-                    {{ type }}
-                </option>
-            </select>
-            <select class="form-select" v-model="selectedFormat" aria-label="Filter by format">
-                <option value="">All formats</option>
-                <option value="txt">Plain Text</option>
-                <option value="pdf">PDF</option>
-                <option value="guitarpro">GuitarPro</option>
-                <option value="musicxml">MusicXML</option>
-                <option value="capx">Capella</option>
-            </select>
-            <button class="btn btn-outline-secondary" type="button" @click="resetFilters">
-                Reset
-            </button>
-        </div>
-
-        <table v-if="filteredTabs.length" class="table tab-table">
+        <table v-if="ready && sortedTabList.length" class="table tab-table">
             <thead>
                 <tr>
-                    <th scope="col">Title</th>
+                    <th scope="col">
+                        <button type="button" class="sort-button" @click="setSort('artist')">
+                            Artist
+                            <span v-if="sortKey === 'artist'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
+                        </button>
+                    </th>
+                    <th scope="col">
+                        <button type="button" class="sort-button" @click="setSort('title')">
+                            Title
+                            <span v-if="sortKey === 'title'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
+                        </button>
+                    </th>
                     <th scope="col" class="favorite-header">
                         <button type="button" class="sort-button" @click="setSort('favorite')">
                             ★
                             <span v-if="sortKey === 'favorite'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
                         </button>
                     </th>
-                    <th scope="col">Type</th>
+                    <th scope="col">
+                        <button type="button" class="sort-button" @click="setSort('type')">
+                            Type
+                            <span v-if="sortKey === 'type'">{{ sortDir === "asc" ? "▲" : "▼" }}</span>
+                        </button>
+                    </th>
                     <th scope="col">
                         <button type="button" class="sort-button" @click="setSort('createdAt')">
                             Date Added
@@ -428,7 +380,12 @@ export default defineComponent({
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="tab in visibleTabs" :key="tab.id">
+                <tr v-for="tab in visibleTabList" :key="tab.id">
+                    <td>
+                        <router-link :to="artistRoute(tab)" class="tab-link">
+                            {{ artistLabel(tab) }}
+                        </router-link>
+                    </td>
                     <td>
                         <div class="title-cell">
                             <router-link :to="`/tab/${tab.id}`" class="tab-link">
@@ -464,14 +421,15 @@ export default defineComponent({
         <div
             ref="scrollSentinel"
             class="scroll-sentinel"
-            v-if="filteredTabs.length"
+            v-if="ready && sortedTabList.length"
         ></div>
 
         <div
-            v-if="ready && filteredTabs.length === 0"
+            v-if="ready && filteredAndTypedList.length === 0"
             class="empty-state text-center py-5 mb-4 fs-5"
         >
-            <p class="text-muted">No tabs match the current filters.</p>
+            <p class="text-muted">No favorite tabs match the current filters.</p>
+
             <button class="btn btn-sm btn-outline-secondary" @click="resetFilters">
                 Reset filters
             </button>
@@ -490,7 +448,7 @@ export default defineComponent({
                         </button>
                         <button
                             class="btn btn-danger"
-                            @click="deleteTab(actionsTabId, getTabById(actionsTabId)?.title); actionsTabId = null"
+                            @click="deleteTab(actionsTabId, getTabById(actionsTabId)?.title, getTabById(actionsTabId)?.artist); actionsTabId = null"
                         >
                             Delete
                         </button>
@@ -515,20 +473,7 @@ export default defineComponent({
 </template>
 
 <style scoped lang="scss">
-.artist-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.artist-title {
-    display: flex;
-    align-items: center;
-}
-
-.artist-input {
-    max-width: 420px;
-}
+@import "../styles/vars.scss";
 
 .tab-table {
     width: 100%;

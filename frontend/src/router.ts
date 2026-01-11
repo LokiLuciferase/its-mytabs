@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router";
 
 import Layout from "./layouts/Layout.vue";
 import Dashboard from "./pages/Dashboard.vue";
+import Favorites from "./pages/Favorites.vue";
 import Home from "./pages/Home.vue";
 import Register from "./pages/Register.vue";
 import Login from "./pages/Login.vue";
@@ -25,6 +26,11 @@ const routes: RouteRecordRaw[] = [
                     {
                         name: "home",
                         path: "/",
+                        component: Favorites,
+                    },
+                    {
+                        name: "tabs",
+                        path: "/tabs",
                         component: Home,
                     },
                     {

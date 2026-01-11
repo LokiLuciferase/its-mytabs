@@ -39,9 +39,14 @@ export default defineComponent({
 
             <div class="toolbar">
                 <div class="left" v-show="ready">
-                    <router-link to="/" v-if="isLoggedIn">
+                    <router-link to="/tabs" v-if="isLoggedIn">
                         <font-awesome-icon :icon='["fas", "folder"]' />
                         Tabs
+                    </router-link>
+
+                    <router-link to="/" v-if="isLoggedIn">
+                        <font-awesome-icon :icon='["fas", "star"]' />
+                        Favorites
                     </router-link>
 
                     <router-link to="/artists" v-if="isLoggedIn">

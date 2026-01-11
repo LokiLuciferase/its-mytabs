@@ -35,7 +35,7 @@ export default {
     width: $width;
     height: $width;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 13px;
 
     // gradient primary color
     $startColor: #7e7edf;

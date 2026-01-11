@@ -35,6 +35,7 @@ export async function createTab(
         originalFilename,
         createdAt: new Date().toISOString(),
         public: false,
+        favorite: false,
     };
 
     await kv.set(["tab", id], info);
@@ -120,6 +121,11 @@ export async function updateTab(tab: TabInfo, data: UpdateTabInfo) {
         tab.type = data.type;
     }
     tab.public = data.public;
+    await kv.set(["tab", tab.id], tab);
+}
+
+export async function updateTabFavorite(tab: TabInfo, favorite: boolean) {
+    tab.favorite = favorite;
     await kv.set(["tab", tab.id], tab);
 }
 
