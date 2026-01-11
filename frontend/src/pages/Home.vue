@@ -388,23 +388,25 @@ export default defineComponent({
         <div v-if="actionsTabId !== null" class="modal-backdrop" @click="actionsTabId = null">
             <div class="modal-card" @click.stop>
                 <h5 class="mb-3">Row actions</h5>
-                <div v-if="getTabById(actionsTabId)" class="modal-actions">
-                    <button
-                        class="btn btn-secondary"
-                        @click="$router.push(`/tab/${actionsTabId}/edit/info`)"
-                    >
-                        Edit
-                    </button>
-                    <button
-                        class="btn btn-danger"
-                        @click="deleteTab(actionsTabId, getTabById(actionsTabId)?.title, getTabById(actionsTabId)?.artist); actionsTabId = null"
-                    >
-                        Delete
+                <div class="modal-footer">
+                    <div v-if="getTabById(actionsTabId)" class="modal-actions">
+                        <button
+                            class="btn btn-secondary"
+                            @click="$router.push(`/tab/${actionsTabId}/edit/info`)"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            class="btn btn-danger"
+                            @click="deleteTab(actionsTabId, getTabById(actionsTabId)?.title, getTabById(actionsTabId)?.artist); actionsTabId = null"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                    <button class="btn btn-outline-secondary" @click="actionsTabId = null">
+                        Close
                     </button>
                 </div>
-                <button class="btn btn-outline-secondary mt-3" @click="actionsTabId = null">
-                    Close
-                </button>
             </div>
         </div>
 
@@ -487,7 +489,8 @@ export default defineComponent({
 }
 
 .modal-card {
-    background: #fff;
+    background: #1d1d1f;
+    color: #d6d6d6;
     border-radius: 12px;
     padding: 20px;
     min-width: 280px;
@@ -496,7 +499,22 @@ export default defineComponent({
 
 .modal-actions {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 10px;
+}
+
+.modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+[data-bs-theme="light"] .modal-card {
+    background: #fff;
+    color: #1f1f1f;
 }
 
 .scroll-top-btn {
