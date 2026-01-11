@@ -44,6 +44,11 @@ export default defineComponent({
                         Tabs
                     </router-link>
 
+                    <router-link to="/artists" v-if="isLoggedIn">
+                        <font-awesome-icon :icon='["fas", "user-group"]' />
+                        Artists
+                    </router-link>
+
                     <router-link to="/new-tab" v-if="isLoggedIn">
                         <font-awesome-icon :icon='["fas", "plus"]' />
                         New Tab
