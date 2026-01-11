@@ -51,6 +51,7 @@ export default defineComponent({
             isPdf: false,
             textTabContent: "",
             pdfTabUrl: "",
+            isPdfFullscreen: false,
             speed: 100,
             ready: false,
             selectedTrack: 0,
@@ -345,6 +346,7 @@ export default defineComponent({
         window.removeEventListener("keydown", this.keyEvents);
 
         this.socket.disconnect();
+        this.setPdfFullscreen(false, { syncHistory: false });
     },
     methods: {
         async load(trackID) {
@@ -386,6 +388,7 @@ export default defineComponent({
                 this.currentAudio = "none";
                 if (this.isPdf) {
                     this.pdfTabUrl = this.getPdfUrl();
+                    this.setPdfFullscreen(false, { syncHistory: false });
                 } else {
                     this.textTabContent = await this.fetchTextTab();
                 }
@@ -478,6 +481,58 @@ export default defineComponent({
 
         isPdfTab(tab) {
             return this.getTabExtension(tab?.filename || "") === "pdf";
+        },
+
+        setPdfFullscreen(enabled, { syncHistory = true } = {}) {
+            if (enabled === this.isPdfFullscreen) {
+                return;
+            }
+            this.isPdfFullscreen = enabled;
+            document.body.style.overflow = enabled ? "hidden" : "";
+            if (enabled) {
+                if (syncHistory) {
+                    history.pushState({ pdfFullscreen: true }, "");
+                }
+                window.addEventListener("keydown", this.handlePdfFullscreenKeydown);
+                window.addEventListener("popstate", this.handlePdfFullscreenPopstate);
+            } else {
+                window.removeEventListener("keydown", this.handlePdfFullscreenKeydown);
+                window.removeEventListener("popstate", this.handlePdfFullscreenPopstate);
+            }
+        },
+
+        togglePdfFullscreen() {
+            if (this.isPdfFullscreen) {
+                this.exitPdfFullscreen();
+                return;
+            }
+            this.setPdfFullscreen(true);
+        },
+
+        exitPdfFullscreen() {
+            if (!this.isPdfFullscreen) {
+                return;
+            }
+            if (history.state?.pdfFullscreen) {
+                history.back();
+                return;
+            }
+            this.setPdfFullscreen(false, { syncHistory: false });
+        },
+
+        handlePdfFullscreenKeydown(event) {
+            if (event.key !== "Escape") {
+                return;
+            }
+            event.preventDefault();
+            this.exitPdfFullscreen();
+        },
+
+        handlePdfFullscreenPopstate() {
+            if (!this.isPdfFullscreen) {
+                return;
+            }
+            this.setPdfFullscreen(false, { syncHistory: false });
         },
 
         async fetchTextTab() {
@@ -1258,21 +1313,29 @@ export default defineComponent({
 </script>
 
 <template>
-    <div class="main" :class='{ "light": this.setting.scoreColor === "light", "pdf-viewer": isPdf }'>
+    <div class="main" :class='{ "light": this.setting.scoreColor === "light" }'>
         <h1>{{ tab.title }}</h1>
         <h2>{{ tab.artist }}</h2>
         <template v-if="!isPlainText">
             <div ref="bassTabContainer" v-pre></div>
         </template>
         <template v-else>
-            <div class="text-tab-actions" v-if="isLoggedIn">
-                <button class="btn btn-secondary" @click="edit()">Edit</button>
+            <div class="text-tab-actions" v-if="isLoggedIn || isPdf">
+                <button class="btn btn-secondary" v-if="isLoggedIn" @click="edit()">Edit</button>
+                <button class="btn btn-secondary" v-if="isPdf" @click="togglePdfFullscreen()">
+                    {{ isPdfFullscreen ? "Exit full screen" : "Full screen" }}
+                </button>
             </div>
-            <div class="text-tab" :class='{ "text-tab-pdf-container": isPdf }'>
-                <iframe v-if="isPdf" class="text-tab-pdf" :src="pdfTabUrl" title="PDF Tab"></iframe>
-                <pre v-else class="text-tab-content">{{ textTabContent }}</pre>
+            <div class="text-tab">
+                <iframe v-if="isPdf && !isPdfFullscreen" class="text-tab-pdf" :src="pdfTabUrl" title="PDF Tab"></iframe>
+                <pre v-else-if="!isPdf" class="text-tab-content">{{ textTabContent }}</pre>
             </div>
         </template>
+
+        <div v-if="isPdf && isPdfFullscreen" class="pdf-fullscreen">
+            <button class="btn btn-light pdf-fullscreen-close" @click="togglePdfFullscreen()">Close</button>
+            <iframe class="pdf-fullscreen-frame" :src="pdfTabUrl" title="PDF Tab"></iframe>
+        </div>
 
         <!-- Just add a margin, don't let youtube player overlay the tab -->
         <div v-if="!isPlainText" :class='{ "yt-margin": currentAudio.startsWith(`youtube-`) }'></div>
@@ -1426,12 +1489,6 @@ $youtube-height: 200px;
     }
 }
 
-.main.pdf-viewer {
-    width: 100%;
-    margin: 0;
-}
-
-
 .yt-margin {
     width: 1px;
     height: $youtube-height !important;
@@ -1455,6 +1512,10 @@ $youtube-height: 200px;
     border-color: #d6d6d6;
 }
 
+.main.light .text-tab-content {
+    color: #1f1f1f;
+}
+
 .text-tab-content {
     font-family: "Courier New", monospace;
     font-size: 14px;
@@ -1471,8 +1532,25 @@ $youtube-height: 200px;
     display: block;
 }
 
-.text-tab-pdf-container {
-    padding: 0;
+ 
+.pdf-fullscreen {
+    position: fixed;
+    inset: 0;
+    background: #111;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+}
+
+.pdf-fullscreen-frame {
+    flex: 1;
+    border: 0;
+    width: 100%;
+}
+
+.pdf-fullscreen-close {
+    align-self: flex-end;
+    margin: 12px;
 }
 
 .toolbar {
