@@ -4,6 +4,8 @@ import { notify } from "@kyvg/vue3-notification";
 import { baseURL, checkFetch, generalError } from "../app.js";
 import { isLoggedIn } from "../auth-client.js";
 import { tabTypeList } from "../../../backend/common.js";
+import { slugify } from "../utils/slugify.ts";
+import { formatDate, formatFilterKey, formatKey, formatLabel } from "../utils/tab-format.ts";
 
 export default defineComponent({
     data() {
@@ -32,7 +34,7 @@ export default defineComponent({
         baseTabs() {
             const artistKey = this.artistSlug;
             return this.tabList.filter((tab) => {
-                const tabArtist = this.slugify(tab.artist || "Unknown Artist");
+                const tabArtist = slugify(tab.artist || "Unknown Artist");
                 return tabArtist === artistKey;
             });
         },
@@ -86,57 +88,10 @@ export default defineComponent({
         },
     },
     methods: {
-        slugify(value) {
-            return (value || "")
-                .toString()
-                .normalize("NFKD")
-                .replace(/&/g, " and ")
-                .replace(/[^\w\s-]/g, "")
-                .trim()
-                .toLowerCase()
-                .replace(/[\s_-]+/g, "-")
-                .replace(/^-+|-+$/g, "");
-        },
-        formatLabel(tab) {
-            const ext = this.formatKey(tab);
-            const map = {
-                txt: "Plain Text",
-                pdf: "PDF",
-                gp: "GuitarPro",
-                gpx: "GuitarPro",
-                gp3: "GuitarPro",
-                gp4: "GuitarPro",
-                gp5: "GuitarPro",
-                musicxml: "MusicXML",
-                capx: "Capella",
-            };
-            return map[ext] || ext.toUpperCase() || "Unknown";
-        },
-        formatKey(tab) {
-            const name = tab?.filename || "";
-            return name.split(".").pop()?.toLowerCase() || "";
-        },
-        formatFilterKey(tab) {
-            const ext = this.formatKey(tab);
-            if (["gp", "gpx", "gp3", "gp4", "gp5"].includes(ext)) {
-                return "guitarpro";
-            }
-            return ext;
-        },
-        formatDate(value) {
-            if (!value) {
-                return "Unknown";
-            }
-            const date = new Date(value);
-            if (Number.isNaN(date.getTime())) {
-                return "Unknown";
-            }
-            return date.toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "2-digit",
-            });
-        },
+        formatDate,
+        formatFilterKey,
+        formatKey,
+        formatLabel,
         resetFilters() {
             this.selectedType = "";
             this.selectedFormat = "";
@@ -261,7 +216,7 @@ export default defineComponent({
 
                 this.artistName = updatedName;
                 this.newArtistName = updatedName;
-                this.artistSlug = this.slugify(updatedName);
+            this.artistSlug = slugify(updatedName);
                 await this.load();
                 this.$router.replace(`/artist/${this.artistSlug}`);
             } catch (error) {

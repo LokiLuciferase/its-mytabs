@@ -4,6 +4,8 @@ import { notify } from "@kyvg/vue3-notification";
 import { baseURL, checkFetch } from "../app.js";
 import { isLoggedIn } from "../auth-client.js";
 import { tabTypeList } from "../../../backend/common.js";
+import { slugify } from "../utils/slugify.ts";
+import { formatDate, formatFilterKey, formatKey, formatLabel } from "../utils/tab-format.ts";
 
 export default defineComponent({
     data() {
@@ -110,69 +112,22 @@ export default defineComponent({
     },
 
     methods: {
+        formatDate,
+        formatFilterKey,
+        formatKey,
+        formatLabel,
         getTabById(id) {
             return this.sortedTabList.find((tab) => tab.id === id) || null;
-        },
-        formatKey(tab) {
-            const name = tab?.filename || "";
-            return name.split(".").pop()?.toLowerCase() || "";
-        },
-        formatFilterKey(tab) {
-            const ext = this.formatKey(tab);
-            if (["gp", "gpx", "gp3", "gp4", "gp5"].includes(ext)) {
-                return "guitarpro";
-            }
-            return ext;
-        },
-        formatLabel(tab) {
-            const ext = this.formatKey(tab);
-            const map = {
-                txt: "Plain Text",
-                pdf: "PDF",
-                gp: "GuitarPro",
-                gpx: "GuitarPro",
-                gp3: "GuitarPro",
-                gp4: "GuitarPro",
-                gp5: "GuitarPro",
-                musicxml: "MusicXML",
-                capx: "Capella",
-            };
-            return map[ext] || ext.toUpperCase() || "Unknown";
-        },
-        formatDate(value) {
-            if (!value) {
-                return "Unknown";
-            }
-            const date = new Date(value);
-            if (Number.isNaN(date.getTime())) {
-                return "Unknown";
-            }
-            return date.toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "2-digit",
-            });
         },
         resetFilters() {
             this.selectedType = "";
             this.selectedFormat = "";
         },
-        slugify(value) {
-            return (value || "")
-                .toString()
-                .normalize("NFKD")
-                .replace(/&/g, " and ")
-                .replace(/[^\w\s-]/g, "")
-                .trim()
-                .toLowerCase()
-                .replace(/[\s_-]+/g, "-")
-                .replace(/^-+|-+$/g, "");
-        },
         artistLabel(tab) {
             return tab.artist || "Unknown Artist";
         },
         artistRoute(tab) {
-            return `/artist/${this.slugify(this.artistLabel(tab))}`;
+            return `/artist/${slugify(this.artistLabel(tab))}`;
         },
         setupObserver() {
             if (this.observer) {

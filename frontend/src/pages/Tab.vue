@@ -5,6 +5,7 @@ import { BDropdown, BDropdownDivider, BDropdownItem } from "bootstrap-vue-next";
 import { notify } from "@kyvg/vue3-notification";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { isLoggedIn } from "../auth-client.js";
+import { slugify } from "../utils/slugify.ts";
 
 const alphaTab = await import("@coderline/alphatab");
 const { ScrollMode, StaveProfile } = alphaTab;
@@ -477,17 +478,7 @@ export default defineComponent({
             return filename.slice(idx + 1).toLowerCase();
         },
 
-        slugify(value) {
-            return (value || "")
-                .toString()
-                .normalize("NFKD")
-                .replace(/&/g, " and ")
-                .replace(/[^\w\s-]/g, "")
-                .trim()
-                .toLowerCase()
-                .replace(/[\s_-]+/g, "-")
-                .replace(/^-+|-+$/g, "");
-        },
+        slugify,
 
         isPlainTextTab(tab) {
             return this.getTabExtension(tab?.filename || "") === "txt";

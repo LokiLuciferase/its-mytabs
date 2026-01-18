@@ -3,6 +3,7 @@ import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
 import { baseURL } from "../app.js";
 import { isLoggedIn } from "../auth-client.js";
+import { slugify } from "../utils/slugify.ts";
 
 export default defineComponent({
     data() {
@@ -17,7 +18,7 @@ export default defineComponent({
             const artistMap = new Map();
             this.tabList.forEach((tab) => {
                 const name = tab?.artist || "Unknown Artist";
-                const key = this.slugify(name);
+                const key = slugify(name);
                 if (!artistMap.has(key)) {
                     artistMap.set(key, { name, key });
                 }
@@ -45,19 +46,6 @@ export default defineComponent({
                 type: "error",
             });
         }
-    },
-    methods: {
-        slugify(value) {
-            return (value || "")
-                .toString()
-                .normalize("NFKD")
-                .replace(/&/g, " and ")
-                .replace(/[^\w\s-]/g, "")
-                .trim()
-                .toLowerCase()
-                .replace(/[\s_-]+/g, "-")
-                .replace(/^-+|-+$/g, "");
-        },
     },
 });
 </script>
