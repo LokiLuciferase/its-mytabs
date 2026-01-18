@@ -12,6 +12,7 @@ import { i18n } from "./i18n.ts";
 
 // CSS
 import "./styles/main.scss";
+import { registerSW } from "virtual:pwa-register";
 
 const app = createApp(App);
 app.use(router);
@@ -19,6 +20,8 @@ app.use(i18n);
 app.use(createBootstrap());
 app.component("FontAwesomeIcon", FontAwesomeIcon);
 app.mount("#app");
+
+registerSW({ immediate: true });
 
 function checkMobile() {
     if (window.innerWidth <= 768) {
