@@ -52,6 +52,7 @@ export default defineComponent({
             textTabContent: "",
             pdfTabUrl: "",
             isPdfFullscreen: false,
+            textTabFontSize: 14,
             speed: 100,
             ready: false,
             selectedTrack: 0,
@@ -305,6 +306,7 @@ export default defineComponent({
         this.setting = getSetting();
         this.tabID = this.$route.params.id;
         const urlParams = new URLSearchParams(window.location.search);
+        this.textTabFontSize = this.getConfig("textTabFontSize", 14);
 
         try {
             // Override trackID if provided in URL
@@ -481,6 +483,22 @@ export default defineComponent({
 
         isPdfTab(tab) {
             return this.getTabExtension(tab?.filename || "") === "pdf";
+        },
+
+        setTextTabFontSize(nextSize) {
+            const minSize = 10;
+            const maxSize = 28;
+            const clamped = Math.min(maxSize, Math.max(minSize, nextSize));
+            this.textTabFontSize = clamped;
+            this.setConfig("textTabFontSize", clamped);
+        },
+
+        increaseTextTabFont() {
+            this.setTextTabFontSize(this.textTabFontSize + 1);
+        },
+
+        decreaseTextTabFont() {
+            this.setTextTabFontSize(this.textTabFontSize - 1);
         },
 
         setPdfFullscreen(enabled, { syncHistory = true } = {}) {
@@ -1320,15 +1338,19 @@ export default defineComponent({
             <div ref="bassTabContainer" v-pre></div>
         </template>
         <template v-else>
-            <div class="text-tab-actions" v-if="isLoggedIn || isPdf">
+            <div class="text-tab-actions">
                 <button class="btn btn-secondary" v-if="isLoggedIn" @click="edit()">Edit</button>
                 <button class="btn btn-secondary" v-if="isPdf" @click="togglePdfFullscreen()">
                     {{ isPdfFullscreen ? "Exit full screen" : "Full screen" }}
                 </button>
+                <div class="btn-group" v-if="!isPdf" role="group" aria-label="Tab font size">
+                    <button class="btn btn-secondary" @click="decreaseTextTabFont()" aria-label="Decrease font size">A-</button>
+                    <button class="btn btn-secondary" @click="increaseTextTabFont()" aria-label="Increase font size">A+</button>
+                </div>
             </div>
             <div class="text-tab">
                 <iframe v-if="isPdf && !isPdfFullscreen" class="text-tab-pdf" :src="pdfTabUrl" title="PDF Tab"></iframe>
-                <pre v-else-if="!isPdf" class="text-tab-content">{{ textTabContent }}</pre>
+                <pre v-else-if="!isPdf" class="text-tab-content" :style='{ fontSize: `${textTabFontSize}px` }'>{{ textTabContent }}</pre>
             </div>
         </template>
 
