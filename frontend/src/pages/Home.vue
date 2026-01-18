@@ -373,7 +373,7 @@ export default defineComponent({
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="tab in visibleTabList" :key="tab.id">
+                <tr v-for="tab in visibleTabList" :key="tab.id" :class='{ "unknown-artist": artistLabel(tab) === "Unknown Artist" }'>
                     <td>
                         <router-link :to="artistRoute(tab)" class="tab-link">
                             {{ artistLabel(tab) }}
@@ -470,6 +470,22 @@ export default defineComponent({
 
 .tab-table {
     width: 100%;
+}
+
+.tab-table tbody tr:nth-child(odd) > * {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+:global(.main.light) .tab-table tbody tr:nth-child(odd) > * {
+    background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+.tab-table tbody tr.unknown-artist > * {
+    background-color: rgba(255, 173, 86, 0.18) !important;
+}
+
+:global(.main.light) .tab-table tbody tr.unknown-artist > * {
+    background-color: rgba(255, 173, 86, 0.28) !important;
 }
 
 .tab-table tbody tr:hover {

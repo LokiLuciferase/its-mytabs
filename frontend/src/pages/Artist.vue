@@ -428,7 +428,7 @@ export default defineComponent({
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="tab in visibleTabs" :key="tab.id">
+                <tr v-for="tab in visibleTabs" :key="tab.id" :class='{ "unknown-artist": (tab.artist || "Unknown Artist") === "Unknown Artist" }'>
                     <td>
                         <div class="title-cell">
                             <router-link :to="`/tab/${tab.id}`" class="tab-link">
@@ -532,6 +532,22 @@ export default defineComponent({
 
 .tab-table {
     width: 100%;
+}
+
+.tab-table tbody tr:nth-child(odd) > * {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+:global(.main.light) .tab-table tbody tr:nth-child(odd) > * {
+    background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+.tab-table tbody tr.unknown-artist > * {
+    background-color: rgba(255, 173, 86, 0.18) !important;
+}
+
+:global(.main.light) .tab-table tbody tr.unknown-artist > * {
+    background-color: rgba(255, 173, 86, 0.28) !important;
 }
 
 .tab-table tbody tr:hover {

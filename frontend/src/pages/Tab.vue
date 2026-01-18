@@ -477,6 +477,18 @@ export default defineComponent({
             return filename.slice(idx + 1).toLowerCase();
         },
 
+        slugify(value) {
+            return (value || "")
+                .toString()
+                .normalize("NFKD")
+                .replace(/&/g, " and ")
+                .replace(/[^\w\s-]/g, "")
+                .trim()
+                .toLowerCase()
+                .replace(/[\s_-]+/g, "-")
+                .replace(/^-+|-+$/g, "");
+        },
+
         isPlainTextTab(tab) {
             return this.getTabExtension(tab?.filename || "") === "txt";
         },
@@ -1333,7 +1345,16 @@ export default defineComponent({
 <template>
     <div class="main" :class='{ "light": this.setting.scoreColor === "light" }'>
         <h1>{{ tab.title }}</h1>
-        <h2>{{ tab.artist }}</h2>
+        <h2>
+            <router-link
+                v-if="tab.artist"
+                :to="`/artist/${slugify(tab.artist)}`"
+                class="tab-artist-link"
+            >
+                {{ tab.artist }}
+            </router-link>
+            <span v-else>Unknown Artist</span>
+        </h2>
         <template v-if="!isPlainText">
             <div ref="bassTabContainer" v-pre></div>
         </template>
@@ -1509,6 +1530,15 @@ $youtube-height: 200px;
             color: #333;
         }
     }
+}
+
+.tab-artist-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.tab-artist-link:hover {
+    text-decoration: underline;
 }
 
 .yt-margin {
